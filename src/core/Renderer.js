@@ -283,10 +283,10 @@ class Renderer {
     this.drawCastle(ctx, time);
     this.drawCamp(ctx, time);
 
-    // Healing auras (draw under units)
+    // Far half of each healing rune goes behind the units.
     const healSheet = this.sprites.healingAura;
     for (const aura of battle.healingAuras) {
-      aura.draw(ctx, healSheet);
+      aura.draw(ctx, healSheet, "back");
     }
 
     // Units sorted by depth
@@ -303,6 +303,12 @@ class Renderer {
     for (const unit of units) {
       const sheet = this.sprites[unit.kind];
       unit.draw(ctx, this.ground, time, sheet);
+    }
+
+    // Near edge sits in front of feet, so overlapping enemies cannot hide
+    // which ally the ground rune belongs to.
+    for (const aura of battle.healingAuras) {
+      aura.draw(ctx, healSheet, "front");
     }
 
     // Projectiles — draw fireball and lightning separately
@@ -500,7 +506,7 @@ class Renderer {
       return { frameWidth: 316, frameHeight: 311, originX: 148, feetOrigin: 298, portraitX: 18, portraitScale: 0.13 };
     }
     if (kind === "kira") {
-      return { frameWidth: 256, frameHeight: 256, originX: 135, feetOrigin: 235, portraitX: 12, portraitScale: 0.088 };
+      return { ...Kira.spriteGeometry, portraitX: 12, portraitScale: 0.62 };
     }
     return { frameWidth: 48, frameHeight: 48, originX: 20, feetOrigin: 43, portraitX: 11, portraitScale: 0.66 };
   }

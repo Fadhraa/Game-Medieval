@@ -11,7 +11,7 @@ class Minotaur extends Unit {
       damage: 20,
       speed: 20,
       attackEvery: 2.5,
-      reach: 15,
+      reach: 29
     });
 
     this.healed = false;
@@ -31,7 +31,7 @@ class Minotaur extends Unit {
       barYOffset: 58,
       shadowWidth: 28,
       portraitX: 18,
-      portraitScale: 0.13,
+      portraitScale: 0.13
     };
   }
 
@@ -71,7 +71,7 @@ class Minotaur extends Unit {
             -25 - Math.random() * 35,
             0.45 + Math.random() * 0.25,
             i % 2 ? "#55d688" : "#b0f7c2",
-            2,
+            2
           );
         }
       }
@@ -84,10 +84,7 @@ class Minotaur extends Unit {
   getPose(time) {
     if (this.healingTimer > 0) {
       // 4th row (index 3) exclusively for healing animation
-      const healProgress = Math.max(
-        0,
-        Math.min(1, 1 - this.healingTimer / 1.0),
-      );
+      const healProgress = Math.max(0, Math.min(1, 1 - this.healingTimer / 1.0));
       const healFrame = Math.min(3, Math.floor(healProgress * 4));
       return [3, healFrame];
     }
@@ -109,7 +106,7 @@ class Minotaur extends Unit {
         Math.round(this.x - cfg.shadowWidth / 2),
         Math.round(feet - 1),
         cfg.shadowWidth,
-        2,
+        2
       );
 
       // Draw sprite
@@ -128,7 +125,7 @@ class Minotaur extends Unit {
         -cfg.originX,
         -cfg.feetOrigin,
         cfg.frameWidth,
-        cfg.frameHeight,
+        cfg.frameHeight
       );
       ctx.restore();
     } else {
@@ -140,21 +137,11 @@ class Minotaur extends Unit {
       const barY = feet - cfg.barYOffset;
       const barW = cfg.barWidth;
       ctx.fillStyle = "#30362b";
-      ctx.fillRect(
-        Math.round(this.x - barW / 2),
-        Math.round(barY),
-        barW,
-        cfg.barHeight,
-      );
+      ctx.fillRect(Math.round(this.x - barW / 2), Math.round(barY), barW, cfg.barHeight);
 
       ctx.fillStyle = this.healingTimer > 0 ? "#55d688" : "#ef9a6e";
       const fillW = Math.ceil((this.hp / this.maxHp) * (barW - 2));
-      ctx.fillRect(
-        Math.round(this.x - barW / 2 + 1),
-        Math.round(barY + 1),
-        fillW,
-        1,
-      );
+      ctx.fillRect(Math.round(this.x - barW / 2 + 1), Math.round(barY + 1), fillW, 1);
     }
   }
 
@@ -188,3 +175,4 @@ class Minotaur extends Unit {
 }
 
 window.Minotaur = Minotaur;
+

@@ -20,6 +20,8 @@ class Unit extends Entity {
     this.swing = 1;
     this.flash = 0;
     this.engaged = false;
+    this.attackTarget = null;
+    this.hasAttackSlot = false;
     this.moving = false;
   }
 
@@ -95,12 +97,15 @@ class Unit extends Entity {
     this.swing += delta;
     this.flash = Math.max(0, this.flash - delta);
     this.moving = false;
+    this.attackTarget = null;
+    this.hasAttackSlot = false;
 
     if (this.engaged) {
       const target = distance <= this.reach ? opponent : null;
-      const hasSlot = this.canAttackSlot(target ?? base, battle);
+      this.attackTarget = target ?? base;
+      this.hasAttackSlot = this.canAttackSlot(this.attackTarget, battle);
 
-      if (hasSlot && this.cooldown === 0) {
+      if (this.hasAttackSlot && this.cooldown === 0) {
         this.performAttack(target, base, battle);
         this.cooldown = this.attackEvery + Math.min(0, remainingCooldown);
         this.swing = 0;
@@ -121,7 +126,7 @@ class Unit extends Entity {
     if (this.swing < 0.08) return [spriteRows.attack, 1];
     if (this.swing < 0.17) return [spriteRows.attack, 2];
     if (this.swing < 0.27) return [spriteRows.attack, 3];
-    if (this.engaged && this.cooldown <= 0.13) return [spriteRows.attack, 0];
+    if (this.hasAttackSlot && this.cooldown <= 0.13) return [spriteRows.attack, 0];
     if (this.moving) return [spriteRows.walk, Math.floor(this.walk * walkFps) % 4];
     return [spriteRows.idle, Math.floor(time * 4) % 4];
   }

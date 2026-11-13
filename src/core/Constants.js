@@ -31,7 +31,7 @@ const Constants = {
       wizard: "assets/sprites/units/wizard.png",
       goblin: "assets/sprites/units/goblin.png",
       minotaur: "assets/sprites/units/minotaur.png",
-      kira: "assets/sprites/units/kira.png",
+      kira: "assets/sprites/units/kira-chibi.png",
       fireball: "assets/sprites/projectiles/fireball.png",
       lightning: "assets/sprites/projectiles/lightning_kira.png",
       healingAura: "assets/sprites/projectiles/healing_kira.png"

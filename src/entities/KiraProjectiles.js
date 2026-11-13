@@ -114,8 +114,9 @@ class LightningBurst extends Entity {
 }
 
 class HealingAura extends Entity {
-  constructor(x, y, life = 0.75) {
-    super(x, y);
+  constructor(target, life = 0.75) {
+    super(target.x, Constants.GROUND_Y + (target.depth ?? 0));
+    this.target = target;
     this.life = life;
     this.maxLife = life;
     this.frameWidth = 543;
@@ -123,39 +124,47 @@ class HealingAura extends Entity {
   }
 
   update(delta) {
+    // Follow the healed ally while it advances; the effect is tied to its feet.
+    if (this.target.hp > 0) {
+      this.x = this.target.x;
+      this.y = Constants.GROUND_Y + (this.target.depth ?? 0);
+    }
     this.life -= delta;
     if (this.life <= 0) {
       this.active = false;
     }
   }
 
-  draw(ctx, spriteSheet) {
+  draw(ctx, spriteSheet, layer = "back") {
     if (!spriteSheet?.complete || !spriteSheet.naturalWidth) return;
     const progress = Math.max(0, Math.min(1, (this.maxLife - this.life) / this.maxLife));
     const frame = Math.min(3, Math.floor(progress * 4));
-    const scale = 0.11;
+    const scale = 0.08;
     const drawW = Math.round(this.frameWidth * scale);
-    const drawH = Math.round(this.frameHeight * scale);
+    // The upper half sits behind units; the near edge is painted over their feet.
+    const circleTop = 480;
+    const split = 565;
+    const sourceTop = layer === "front" ? split : circleTop;
+    const sourceBottom = layer === "front" ? this.frameHeight : split;
+    const top = Math.round(this.y - 5) + Math.round((sourceTop - circleTop) * scale);
+    const bottom = Math.round(this.y - 5) + Math.round((sourceBottom - circleTop) * scale);
 
     ctx.save();
     // Smooth fade in and fade out
     ctx.globalAlpha = Math.sin(progress * Math.PI) * 0.95;
     ctx.imageSmoothingEnabled = false;
 
-    // Anchor the aura circle precisely to the ground feet position
-    const originX = 271 * scale;
-    const originY = 620 * scale;
-
+    // Center the rune on the actual foot position, not above the target's legs.
     ctx.drawImage(
       spriteSheet,
       frame * this.frameWidth,
-      0,
+      sourceTop,
       this.frameWidth,
-      this.frameHeight,
-      Math.round(this.x - originX),
-      Math.round(this.y - originY),
+      sourceBottom - sourceTop,
+      Math.round(this.x - drawW / 2),
+      top,
       drawW,
-      drawH
+      bottom - top
     );
     ctx.restore();
   }

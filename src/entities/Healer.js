@@ -58,7 +58,7 @@ class Healer extends Unit {
 
     // Spawn green/cyan healing aura under the target's feet
     const targetFeet = Constants.GROUND_Y + (target.depth ?? 0);
-    battle.spawnHealingAura(target.x, targetFeet);
+    battle.spawnHealingAura(target);
 
     // Spawn healing sparkles around target
     for (let i = 0; i < 7; i++) {
@@ -80,14 +80,14 @@ class Healer extends Unit {
       return;
     }
 
-    this.flash = Math.max(0, this.flash - delta);
-    this.swing += delta;
     this.healCooldown = Math.max(0, this.healCooldown - delta);
 
     // Priority 1: Check if an ally ahead needs healing
     const targetToHeal = this.findHealTarget(battle);
 
     if (targetToHeal) {
+      this.flash = Math.max(0, this.flash - delta);
+      this.swing += delta;
       this.isHealing = true;
       this.healTarget = targetToHeal;
       this.moving = false;

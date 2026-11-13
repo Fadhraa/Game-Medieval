@@ -1,6 +1,8 @@
 "use strict";
 
 class Kira extends Healer {
+  static spriteGeometry = { frameWidth: 48, frameHeight: 48, originX: 24, feetOrigin: 42 };
+
   constructor(depth = 0) {
     super({
       kind: "kira",
@@ -16,66 +18,43 @@ class Kira extends Healer {
       healSpeed: 2.25,
       healPower: 0.05
     });
+    this.castRow = 3;
   }
 
   getRenderConfig() {
     return {
-      frameWidth: 256,
-      frameHeight: 256,
-      originX: 135,
-      feetOrigin: 248,
-      scale: 0.19,
+      ...Kira.spriteGeometry,
+      scale: 1,
       nativeDirection: 1, // Menghadap ke kanan di sprite asli
       barWidth: 20,
       barHeight: 3,
-      barYOffset: 46,
-      shadowWidth: 20,
-      portraitX: 13,
-      portraitScale: 0.11
+      barYOffset: 37,
+      shadowWidth: 19
     };
+  }
+
+  performHeal(target, battle) {
+    super.performHeal(target, battle);
+    this.castRow = 2;
   }
 
   performAttack(target, base, battle) {
-    // Spawns lightning bolt tepat di depan posisi tangan/buku sihir Kira
+    this.castRow = 3;
     const feet = Constants.GROUND_Y + (this.depth ?? 0);
-    battle.spawnProjectile(new LightningBolt(this.x + 28, feet - 23));
+    battle.spawnProjectile(new LightningBolt(this.x + 15, feet - 17));
   }
 
   getPose(time) {
-    const spriteRows = {
-      idle: 0,   // Baris 1: Idle (5 frame)
-      walk: 1,   // Baris 2: Berjalan (6 frame)
-      heal: 2,   // Baris 3: Heal target (6 frame)
-      attack: 3  // Baris 4: Menyerang (6 frame)
-    };
-    const walkFps = 7.5;
+    const frameCount = 6;
+    const castDuration = this.castRow === 2 ? 0.54 : 0.48;
 
-    // Row 2: Heal animation (6 frames)
-    if (this.isHealing) {
-      if (this.swing < 0.54) {
-        const frame = Math.min(5, Math.floor((this.swing / 0.54) * 6));
-        return [spriteRows.heal, frame];
-      }
-      if (this.healCooldown <= 0.25) return [spriteRows.heal, 0];
-      return [spriteRows.heal, Math.floor(time * 3) % 6];
+    if (this.swing < castDuration) {
+      return [this.castRow, Math.floor(this.swing * frameCount / castDuration)];
     }
-
-    // Row 3: Attack animation (6 frames)
-    if (this.swing < 0.48) {
-      const frame = Math.min(5, Math.floor((this.swing / 0.48) * 6));
-      return [spriteRows.attack, frame];
-    }
-    if (this.engaged && this.cooldown <= 0.2) {
-      return [spriteRows.attack, 0];
-    }
-
-    // Row 1: Walk animation (6 frames)
     if (this.moving) {
-      return [spriteRows.walk, Math.floor(this.walk * walkFps) % 6];
+      return [1, Math.floor(this.walk * 7.5) % frameCount];
     }
-
-    // Row 0: Idle animation (5 frames only, 6th column is empty)
-    return [spriteRows.idle, Math.floor(time * 3.5) % 5];
+    return [0, Math.floor(time * 4.2) % frameCount];
   }
 
   drawProcedural(ctx, feet) {

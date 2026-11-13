@@ -25,7 +25,7 @@ class Battle {
     this.particles = [];
     this.healingAuras = [];
     this.lightningBursts = [];
-    this.knightsAttacking = new Map();
+    this.knightAttackQueues = new Map();
   }
 
   randomGoblinDelay() {
@@ -57,6 +57,7 @@ class Battle {
     this.particles = [];
     this.healingAuras = [];
     this.lightningBursts = [];
+    this.knightAttackQueues.clear();
   }
 
   pause() {
@@ -151,8 +152,8 @@ class Battle {
     this.lightningBursts.push(new LightningBurst(x, y));
   }
 
-  spawnHealingAura(x, y) {
-    this.healingAuras.push(new HealingAura(x, y));
+  spawnHealingAura(target) {
+    this.healingAuras.push(new HealingAura(target));
   }
 
   spawnParticle(x, y, vx, vy, life, color, size = 1) {
@@ -184,6 +185,25 @@ class Battle {
     }
   }
 
+  takeKnightAttackSlot(target, knight) {
+    let state = this.knightAttackQueues.get(target);
+    if (!state) {
+      state = { waiting: new Set(), occupiedUntil: [] };
+      this.knightAttackQueues.set(target, state);
+    }
+
+    state.waiting.add(knight);
+    if (state.waiting.values().next().value !== knight ||
+        state.occupiedUntil.length >= Constants.KNIGHTS_PER_TARGET) {
+      return false;
+    }
+
+    state.waiting.delete(knight);
+    // Keep the slot for one attack interval so a stack cannot burst past the cap.
+    state.occupiedUntil.push(this.elapsed + knight.attackEvery);
+    return true;
+  }
+
   update(delta) {
     if (this.mode !== "playing") return;
 
@@ -207,12 +227,23 @@ class Battle {
       this.nextMinotaur = this.elapsed + this.randomMinotaurDelay();
     }
 
-    // Reset slot tracker each frame
-    this.knightsAttacking.clear();
+    for (const state of this.knightAttackQueues.values()) {
+      state.occupiedUntil = state.occupiedUntil.filter(time => time > this.elapsed + 1e-8);
+    }
 
     // Update units
     for (const unit of this.units) {
       unit.update(delta, this);
+    }
+
+    for (const [target, state] of this.knightAttackQueues) {
+      for (const knight of state.waiting) {
+        if (knight.hp <= 0 || knight.attackTarget !== target) state.waiting.delete(knight);
+      }
+      if ((target instanceof Unit && target.hp <= 0) ||
+          (state.waiting.size === 0 && state.occupiedUntil.length === 0)) {
+        this.knightAttackQueues.delete(target);
+      }
     }
 
     // Update projectiles

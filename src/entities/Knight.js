@@ -8,8 +8,8 @@ class Knight extends Unit {
       cost: Constants.KNIGHT_COST,
       start: 83,
       depth,
-      hp: 75,
-      damage: 10,
+      hp: 1005,
+      damage: 1,
       speed: 24,
       attackEvery: 1,
       reach: 17,
@@ -34,12 +34,7 @@ class Knight extends Unit {
   }
 
   canAttackSlot(target, battle) {
-    const count = battle.knightsAttacking.get(target) ?? 0;
-    if (count < Constants.KNIGHTS_PER_TARGET) {
-      battle.knightsAttacking.set(target, count + 1);
-      return true;
-    }
-    return false;
+    return this.cooldown === 0 && battle.takeKnightAttackSlot(target, this);
   }
 
   drawProcedural(ctx, feet) {
