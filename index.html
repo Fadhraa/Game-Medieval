@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f6f0e2">
+<meta name="description" content="Game strategi pixel art 2D. Panggil ksatria dan wizard untuk merebut benteng goblin.">
+<title>Roti &amp; Benteng</title>
+<link rel="stylesheet" href="style.css">
+<!-- Core Systems -->
+<script src="src/core/Constants.js" defer></script>
+<script src="src/core/AudioManager.js" defer></script>
+
+<!-- OOP Entity Hierarchy -->
+<script src="src/entities/Entity.js" defer></script>
+<script src="src/entities/Particle.js" defer></script>
+<script src="src/entities/Projectile.js" defer></script>
+<script src="src/entities/KiraProjectiles.js" defer></script>
+<script src="src/entities/Unit.js" defer></script>
+<script src="src/entities/Healer.js" defer></script>
+<script src="src/entities/Knight.js" defer></script>
+<script src="src/entities/Wizard.js" defer></script>
+<script src="src/entities/Kira.js" defer></script>
+<script src="src/entities/Goblin.js" defer></script>
+<script src="src/entities/Minotaur.js" defer></script>
+
+<!-- Battle Engine & Renderer -->
+<script src="src/core/Battle.js" defer></script>
+<script src="src/core/Renderer.js" defer></script>
+<script src="src/main.js" defer></script>
+</head>
+<body>
+<header class="top">
+  <div class="top-inner">
+    <div class="brand"><canvas class="brand-icon" data-art="crest" width="24" height="24" aria-hidden="true"></canvas> Roti &amp; Benteng</div>
+    <button class="secondary" id="pause" type="button" disabled>Jeda</button>
+  </div>
+</header>
+<main>
+  <section class="intro" aria-labelledby="title">
+    <h1 id="title">Roti <i>&amp;</i> Benteng</h1>
+    <p>Panggil ksatria dan wizard. Hancurkan markas goblin.</p>
+  </section>
+  <section class="battle" aria-label="Medan pertempuran">
+    <div class="battle-hud">
+      <div class="faction hero">
+        <div class="emblem"><canvas data-art="crest" width="24" height="24" aria-hidden="true"></canvas></div>
+        <div class="faction-health">
+          <div class="health-label"><strong>Benteng Kerajaan</strong><span id="heroHp">360 / 360</span></div>
+          <div class="health-track" role="progressbar" aria-label="Kesehatan benteng kerajaan" aria-valuemax="360" aria-valuenow="360" id="heroBar"><div></div></div>
+        </div>
+      </div>
+      <time id="clock" class="clock" aria-label="Waktu pertempuran">00:00</time>
+      <div class="faction enemy">
+        <div class="emblem"><canvas data-art="goblin" width="24" height="24" aria-hidden="true"></canvas></div>
+        <div class="faction-health">
+          <div class="health-label"><strong>Markas Goblin</strong><span id="enemyHp">300 / 300</span></div>
+          <div class="health-track" role="progressbar" aria-label="Kesehatan markas goblin" aria-valuemax="300" aria-valuenow="300" id="enemyBar"><div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="field" tabindex="-1" id="field">
+      <canvas id="scene" width="576" height="247" role="img" aria-label="Benteng kerajaan di kiri dan markas goblin di kanan, dihubungkan oleh satu jalur pertempuran"></canvas>
+      <div class="overlay" id="overlay">
+        <div class="mission">
+          <h2 id="missionTitle">Rebut Markas Goblin</h2>
+          <p id="missionText">Gunakan roti untuk memanggil ksatria dan wizard.</p>
+          <button type="button" id="play">Mulai Pertempuran <span aria-hidden="true">▸</span></button>
+          <button type="button" id="restart" hidden>Ulang dari awal</button>
+        </div>
+      </div>
+    </div>
+    <div class="battle-foot">
+      <span><b></b><span id="status" role="status">Siap bertempur</span></span>
+      <span id="unitCount">0 ksatria · 0 wizard · 0 kira di medan</span>
+    </div>
+  </section>
+  <section class="controls" aria-label="Pasukan dan persediaan">
+    <div class="card supplies">
+      <div class="portrait bread"><canvas data-art="bread" width="24" height="24" aria-hidden="true"></canvas></div>
+      <div class="supply-info">
+        <div class="resource-label">Persediaan roti</div>
+        <div class="resource-value"><strong id="breadCount">4</strong><span>roti</span></div>
+      </div>
+      <div class="production">
+        <div id="breadTime">+1 tiap 3 dtk</div>
+        <div class="bake-track" aria-hidden="true"><div id="bakeFill"></div></div>
+      </div>
+    </div>
+    <div class="card recruit">
+      <div class="portrait knight"><canvas data-art="knight" width="24" height="24" aria-hidden="true"></canvas></div>
+      <div class="unit-info"><strong>Ksatria Pedang</strong><span>Serangan jarak dekat</span></div>
+      <button id="summon" type="button" disabled><span id="summonLabel">Panggil</span><span class="price">2 roti</span></button>
+    </div>
+    <div class="card recruit">
+      <div class="portrait wizard"><canvas data-art="wizard" width="24" height="24" aria-hidden="true"></canvas></div>
+      <div class="unit-info"><strong>Wizard Api</strong><span>Fireball · 75 hit + 5 sebaran</span></div>
+      <button id="summonWizard" type="button" disabled><span id="wizardLabel">Panggil</span><span class="price">8 roti</span></button>
+    </div>
+    <div class="card recruit">
+      <div class="portrait kira"><canvas data-art="kira" width="24" height="24" aria-hidden="true"></canvas></div>
+      <div class="unit-info"><strong>Kira</strong><span>Healer · Lightning · 20 hit</span></div>
+      <button id="summonKira" type="button" disabled><span id="kiraLabel">Panggil</span><span class="price">6 roti</span></button>
+    </div>
+  </section>
+  <p class="hint"><kbd>Spasi</kbd> Ksatria <span aria-hidden="true">·</span> <kbd>W</kbd> Wizard <span aria-hidden="true">·</span> <kbd>P</kbd> Jeda</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,258 @@
+"use strict";
+
+class Battle {
+  constructor(mode = "ready") {
+    this.mode = mode;
+    this.elapsed = 0;
+    this.nextBread = Constants.BREAD_INTERVAL;
+    this.nextGoblin = this.randomGoblinDelay();
+    this.nextMinotaur = this.randomMinotaurDelay();
+
+    this.bread = 4;
+    this.nextSummon = 0;
+    this.nextWizard = 0;
+    this.nextKira = 0;
+    this.knightsRecruited = 0;
+    this.goblinsSpawned = 0;
+    this.minotaursSpawned = 0;
+
+    this.heroHp = Constants.BASES.hero.hp;
+    this.enemyHp = Constants.BASES.enemy.hp;
+
+    this.units = [];
+    this.projectiles = [];
+    this.bursts = [];
+    this.particles = [];
+    this.healingAuras = [];
+    this.lightningBursts = [];
+    this.knightsAttacking = new Map();
+  }
+
+  randomGoblinDelay() {
+    return 10000 + Math.random() * 3.4;
+  }
+
+  randomMinotaurDelay() {
+    return 7 + Math.random() * 2;
+  }
+
+  start() {
+    this.mode = "playing";
+    this.elapsed = 0;
+    this.nextBread = Constants.BREAD_INTERVAL;
+    this.nextGoblin = this.randomGoblinDelay();
+    this.nextMinotaur = this.randomMinotaurDelay();
+    this.bread = 4;
+    this.nextSummon = 0;
+    this.nextWizard = 0;
+    this.nextKira = 0;
+    this.knightsRecruited = 0;
+    this.goblinsSpawned = 0;
+    this.minotaursSpawned = 0;
+    this.heroHp = Constants.BASES.hero.hp;
+    this.enemyHp = Constants.BASES.enemy.hp;
+    this.units = [];
+    this.projectiles = [];
+    this.bursts = [];
+    this.particles = [];
+    this.healingAuras = [];
+    this.lightningBursts = [];
+  }
+
+  pause() {
+    if (this.mode === "playing") this.mode = "paused";
+  }
+
+  resume() {
+    if (this.mode === "paused") this.mode = "playing";
+  }
+
+  spawnUnit(kind) {
+    let spawnIndex = 0;
+    if (kind === "knight") spawnIndex = this.knightsRecruited++;
+    else if (kind === "wizard") spawnIndex = this.knightsRecruited++;
+    else if (kind === "kira") spawnIndex = this.knightsRecruited++;
+    else if (kind === "minotaur") spawnIndex = this.minotaursSpawned++;
+    else if (kind === "goblin") spawnIndex = this.goblinsSpawned++;
+
+    const depth =
+      Constants.TROOP_DEPTHS[spawnIndex % Constants.TROOP_DEPTHS.length];
+    let unit;
+
+    switch (kind) {
+      case "knight":
+        unit = new Knight(depth);
+        break;
+      case "wizard":
+        unit = new Wizard(depth);
+        break;
+      case "kira":
+        unit = new Kira(depth);
+        break;
+      case "goblin":
+        unit = new Goblin(depth);
+        break;
+      case "minotaur":
+        unit = new Minotaur(depth);
+        break;
+      default:
+        console.warn(`Unknown unit kind: ${kind}`);
+        return null;
+    }
+
+    this.units.push(unit);
+    return unit;
+  }
+
+  recruit(kind = "knight") {
+    let cost, nextKey, cooldown;
+
+    switch (kind) {
+      case "wizard":
+        cost = Constants.WIZARD_COST;
+        nextKey = "nextWizard";
+        cooldown = Constants.WIZARD_COOLDOWN;
+        break;
+      case "kira":
+        cost = Constants.KIRA_COST;
+        nextKey = "nextKira";
+        cooldown = Constants.KIRA_COOLDOWN;
+        break;
+      default:
+        cost = Constants.KNIGHT_COST;
+        nextKey = "nextSummon";
+        cooldown = Constants.SUMMON_COOLDOWN;
+        break;
+    }
+
+    if (
+      this.mode !== "playing" ||
+      this.bread < cost ||
+      this.elapsed < this[nextKey]
+    ) {
+      return false;
+    }
+
+    this.bread -= cost;
+    this[nextKey] = this.elapsed + cooldown;
+    this.spawnUnit(kind);
+    return true;
+  }
+
+  spawnProjectile(projectile) {
+    this.projectiles.push(projectile);
+  }
+
+  spawnBurst(x, y) {
+    this.bursts.push(new BurstEffect(x, y));
+  }
+
+  spawnLightningBurst(x, y) {
+    this.lightningBursts.push(new LightningBurst(x, y));
+  }
+
+  spawnHealingAura(x, y) {
+    this.healingAuras.push(new HealingAura(x, y));
+  }
+
+  spawnParticle(x, y, vx, vy, life, color, size = 1) {
+    this.particles.push(new Particle(x, y, vx, vy, life, color, size));
+  }
+
+  spawnImpact(x, heavy = false) {
+    const count = heavy ? 9 : 5;
+    for (let i = 0; i < count; i++) {
+      this.spawnParticle(
+        x,
+        194,
+        (Math.random() - 0.5) * 64,
+        -12 - Math.random() * 33,
+        0.28 + Math.random() * 0.19,
+        i % 2 ? "#fff1c6" : "#e6a15c",
+        heavy ? 2 : 1,
+      );
+    }
+  }
+
+  damageBase(attackerSide, amount) {
+    if (attackerSide === 1) {
+      this.enemyHp = Math.max(0, this.enemyHp - amount);
+      this.spawnImpact(Constants.BASES.enemy.x, true);
+    } else {
+      this.heroHp = Math.max(0, this.heroHp - amount);
+      this.spawnImpact(Constants.BASES.hero.x, true);
+    }
+  }
+
+  update(delta) {
+    if (this.mode !== "playing") return;
+
+    this.elapsed += delta;
+
+    // Bread generation
+    while (this.elapsed + 1e-8 >= this.nextBread) {
+      this.bread++;
+      this.nextBread += Constants.BREAD_INTERVAL;
+    }
+
+    // Auto-spawning enemy goblin
+    if (this.elapsed >= this.nextGoblin) {
+      this.spawnUnit("goblin");
+      this.nextGoblin = this.elapsed + this.randomGoblinDelay();
+    }
+
+    // Auto-spawning enemy minotaur
+    if (this.elapsed >= this.nextMinotaur) {
+      this.spawnUnit("minotaur");
+      this.nextMinotaur = this.elapsed + this.randomMinotaurDelay();
+    }
+
+    // Reset slot tracker each frame
+    this.knightsAttacking.clear();
+
+    // Update units
+    for (const unit of this.units) {
+      unit.update(delta, this);
+    }
+
+    // Update projectiles
+    for (const projectile of this.projectiles) {
+      projectile.update(delta, this);
+    }
+
+    // Update bursts
+    for (const burst of this.bursts) {
+      burst.update(delta);
+    }
+
+    // Update particles
+    for (const particle of this.particles) {
+      particle.update(delta);
+    }
+
+    // Update healing auras
+    for (const aura of this.healingAuras) {
+      aura.update(delta);
+    }
+
+    // Update lightning bursts
+    for (const lb of this.lightningBursts) {
+      lb.update(delta);
+    }
+
+    // Garbage collection of dead/inactive entities
+    this.units = this.units.filter((u) => u.active && u.hp > 0);
+    this.projectiles = this.projectiles.filter((p) => p.active);
+    this.bursts = this.bursts.filter((b) => b.active);
+    this.particles = this.particles.filter((p) => p.active);
+    this.healingAuras = this.healingAuras.filter((a) => a.active);
+    this.lightningBursts = this.lightningBursts.filter((lb) => lb.active);
+
+    // Win/Loss conditions
+    if (!this.enemyHp && !this.heroHp) this.mode = "draw";
+    else if (!this.enemyHp) this.mode = "won";
+    else if (!this.heroHp) this.mode = "lost";
+  }
+}
+
+window.Battle = Battle;

@@ -1,0 +1,127 @@
+:root {
+  color-scheme: light;
+  --paper: #f6f0e2;
+  --ink: #272b24;
+  --muted: #656256;
+  --rust: #9d472a;
+  --gold: #ffcf75;
+  font-family: "DM Sans", system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(ellipse at 50% 0%, #fcf7ec 0, transparent 70%), var(--paper); min-height: 100vh; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid #aa6c20; outline-offset: 3px; }
+button:disabled { cursor: default; }
+[hidden] { display: none !important; }
+.top { border-bottom: 1px solid #dfd4be; }
+.top-inner { max-width: 1184px; margin: auto; min-height: 62px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; gap: 9px; font: 700 19px Georgia, serif; }
+.brand-icon { width: 30px; height: 30px; }
+canvas { image-rendering: pixelated; }
+.secondary { display: flex; align-items: center; gap: 7px; padding: 7px 13px; color: #423e33; background: #fffaed; border: 1px solid #d9ccb3; border-radius: 5px; font-size: 13px; font-weight: 700; }
+.secondary:disabled { color: #706b60; background: transparent; }
+.secondary:not(:disabled):hover { background: #f3e2be; }
+main { max-width: 1184px; margin: auto; padding: 24px 24px 15px; }
+.intro { margin-bottom: 21px; text-align: center; }
+h1 { margin: 0; font: 700 clamp(38px, 5.4vw, 72px)/1.04 Georgia, serif; letter-spacing: -.065em; }
+h1 i { color: var(--rust); font-weight: 400; }
+.intro p { margin: 9px 0 0; color: var(--muted); font-size: 15px; }
+.battle { overflow: hidden; border: 1px solid #2c2d24; border-radius: 11px; background: #242a24; box-shadow: 0 8px 20px #42362226; }
+.battle-hud { min-height: 74px; padding: 12px 18px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 25px; color: #fff5dc; background: #252b25; }
+.faction { min-width: 0; display: flex; align-items: center; gap: 11px; }
+.faction.enemy { flex-direction: row-reverse; }
+.emblem { flex: 0 0 42px; height: 42px; display: grid; place-items: center; border: 1px solid #647465; border-radius: 6px; background: #374b45; }
+.enemy .emblem { border-color: #865945; background: #52392d; }
+.emblem canvas { width: 35px; height: 35px; }
+.faction-health { flex: 1; min-width: 0; }
+.health-label { display: flex; align-items: baseline; justify-content: space-between; gap: 7px; margin-bottom: 6px; font-size: 14px; }
+.health-label span { white-space: nowrap; color: #e7d9bc; font: 11px ui-monospace, monospace; }
+.health-track { height: 8px; background: #141a15; border-radius: 2px; overflow: hidden; }
+.health-track div { width: 100%; height: 100%; background: linear-gradient(#8cd0bf 25%, #60a99f 25%); transition: width .18s linear; }
+.enemy .health-track div { background: linear-gradient(#ee9b72 25%, #ce6b50 25%); }
+.clock { min-width: 64px; text-align: center; padding: 7px 8px; border: 1px solid #4c5142; border-radius: 4px; background: #1d221d; color: #f3d396; font: 700 14px ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.field { position: relative; isolation: isolate; }
+#scene { display: block; width: 100%; height: auto; background: #b6cebe; }
+.overlay { display: grid; place-items: center; position: absolute; inset: 0; background: #181c1426; }
+.mission { width: min(355px, calc(100% - 22px)); padding: 19px 16px; text-align: center; color: #fff3d9; border: 1px solid #c49b58; border-radius: 8px; background: #292b22f5; box-shadow: 0 0 0 4px #25271fb3, 0 9px 26px #1a201c55; }
+.mission h2 { margin: 0; font: 700 clamp(21px, 3.6vw, 32px)/1.08 Georgia, serif; letter-spacing: -.025em; }
+.mission p { margin: 8px 0 14px; font-size: 13px; color: #e8dcc2; }
+#play, #summon, #summonWizard, #summonKira { border: 1px solid #a57234; background: var(--gold); color: #38291b; box-shadow: inset 0 -3px 0 #d5994f; border-radius: 5px; padding: 9px 12px 11px; font-weight: 800; }
+#play span { margin-left: 7px; }
+#play:hover, #summon:not(:disabled):hover, #summonWizard:not(:disabled):hover, #summonKira:not(:disabled):hover { background: #ffdd92; }
+#play:active, #summon:not(:disabled):active, #summonWizard:not(:disabled):active, #summonKira:not(:disabled):active { transform: translateY(1px); }
+#restart { display: block; margin: 9px auto 0; color: #f1ddbb; background: none; border: 0; padding: 4px; text-decoration: underline; font-size: 12px; }
+.battle-foot { min-height: 34px; padding: 6px 16px; display: flex; justify-content: space-between; align-items: center; gap: 8px; color: #e5d6b6; font-size: 12px; }
+.battle-foot > span:first-child { display: flex; align-items: center; gap: 8px; }
+.battle-foot b { width: 7px; height: 7px; background: #a9c48a; border-radius: 1px; }
+.controls { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; margin-top: 13px; }
+.card { min-height: 78px; display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px 13px; border: 1px solid #d9cbb1; border-radius: 8px; background: #fffaee; box-shadow: 0 2px 0 #ded1b7; }
+.portrait { flex: 0 0 50px; height: 50px; border-radius: 6px; display: grid; place-items: center; border: 1px solid #e0c68d; background: #f5e3b8; }
+.portrait.knight { background: #dce8e2; border-color: #b8cdc5; }
+.portrait.wizard { background: #e2dff2; border-color: #bdb9d9; }
+.portrait.kira { background: #dce8f0; border-color: #a8c8d8; }
+.portrait canvas { width: 42px; height: 42px; }
+.supply-info, .unit-info { flex: 1; }
+.resource-label, .unit-info span { color: var(--muted); font-size: 12px; }
+.resource-value { display: flex; align-items: baseline; gap: 5px; font-size: 13px; }
+.resource-value strong { font: 700 26px/1 Georgia, serif; }
+.production { flex: 0 1 120px; font: 11px ui-monospace, monospace; text-align: right; color: #6a5534; }
+.bake-track { height: 5px; background: #e8dbc1; margin-top: 6px; border-radius: 2px; overflow: hidden; }
+#bakeFill { background: #ae7633; height: 100%; width: 0%; }
+.unit-info strong, .unit-info span { display: block; }
+.unit-info strong { font-size: 14px; }
+#summon, #summonWizard, #summonKira { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; font-size: 13px; white-space: nowrap; }
+#summon:disabled, #summonWizard:disabled, #summonKira:disabled { background: #e9ddc3; border-color: #d6c8ac; box-shadow: inset 0 -3px 0 #dbccb0; color: #675c49; }
+.price { border-left: 1px solid #6f512b54; padding-left: 8px; font-size: 11px; white-space: nowrap; }
+.hint { display: flex; justify-content: center; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; margin: 15px 0 0; }
+kbd { background: #fff9ec; border: 1px solid #dacdb4; border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; font: 11px ui-monospace, monospace; }
+@media (max-width: 950px) {
+  .controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .supplies { grid-column: 1 / -1; }
+}
+@media (max-width: 720px) {
+  .top-inner { min-height: 53px; padding: 0 14px; }
+  main { padding: 20px 12px 14px; }
+  .intro { margin-bottom: 15px; }
+  .battle-hud { padding: 9px; min-height: 60px; gap: 8px; }
+  .faction { gap: 6px; }
+  .emblem { flex-basis: 31px; height: 31px; }
+  .emblem canvas { width: 26px; height: 26px; }
+  .health-label { display: block; font-size: 11px; margin-bottom: 3px; line-height: 1.2; }
+  .health-label span { display: block; font-size: 10px; }
+  .enemy .health-label { text-align: right; }
+  .clock { min-width: 47px; padding: 5px 3px; font-size: 12px; }
+  .mission { width: min(290px, calc(100% - 24px)); padding: 10px; }
+  .mission p { margin: 4px 0 8px; font-size: 12px; }
+  #play { font-size: 13px; padding: 6px 9px 8px; }
+  #restart { margin-top: 3px; }
+}
+@media (max-width: 520px) {
+  .controls { grid-template-columns: 1fr; gap: 9px; }
+  .supplies { grid-column: auto; }
+  .card { min-height: 60px; padding: 8px 10px; }
+  .portrait { height: 42px; flex-basis: 42px; }
+  .portrait canvas { width: 35px; height: 35px; }
+  .battle-foot { padding-inline: 9px; font-size: 11px; }
+  #summon { min-height: 42px; }
+}
+.secondary::before {
+  content: "";
+  width: 8px;
+  height: 9px;
+  border-inline: 2px solid currentColor;
+}
+.secondary[aria-label="Lanjutkan pertempuran"]::before {
+  width: 0;
+  height: 0;
+  border: 5px solid transparent;
+  border-right: 0;
+  border-left: 7px solid currentColor;
+}
+@media (min-width: 900px) and (max-height: 880px) {
+  main { max-width: clamp(760px, calc(233svh - 812px), 1184px); padding-top: 17px; }
+  .intro { margin-bottom: 15px; }
+  h1 { font-size: clamp(44px, 8svh, 66px); }
+}
