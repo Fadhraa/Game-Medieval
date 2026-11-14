@@ -12,8 +12,10 @@ const Constants = {
     cost: 1,
     hp: 40,
     homeX: 126,
-    workX: 155,
-    plotX: 193,
+    plots: [
+      { x: 193, workX: 155 },
+      { x: 265, workX: 227 }
+    ],
     speed: 35,
     plantSeconds: 1.1,
     growthSeconds: 3.8,
@@ -27,6 +29,8 @@ const Constants = {
   WIZARD_COOLDOWN: 5,
   KIRA_COST: 6,
   KIRA_COOLDOWN: 5,
+  JAMES_COST: 4,
+  JAMES_COOLDOWN: 4,
 
   FIREBALL_SPEED: 220,
   FIREBALL_SPLASH: 5,
@@ -42,11 +46,21 @@ const Constants = {
 
   ASSETS: {
     sprites: {
+      mountainRidge: "assets/sprites/background/mountain-ridge.png",
+      rollingHills: "assets/sprites/background/rolling-hills.png",
+      distantPine: "assets/sprites/background/cedar-distant.png",
+      woodlandPine: "assets/sprites/background/cedar-woodland.png",
+      woodlandOak: "assets/sprites/background/oak-woodland.png",
+      autumnOak: "assets/sprites/background/oak-autumn.png",
+      cloud: "assets/sprites/background/cloud.png",
+      cloudWispy: "assets/sprites/background/cloud-wispy.png",
+      swallow: "assets/sprites/background/swallow.png",
       farmer: "assets/sprites/units/farmer-v2.png",
       farmPlot: "assets/sprites/farm/plot.png",
       wheatSprout: "assets/sprites/farm/wheat-sprout.png",
       wheatRipe: "assets/sprites/farm/wheat-ripe.png",
       knight: "assets/sprites/units/knight.png",
+      james: "assets/sprites/units/james.png",
       wizard: "assets/sprites/units/wizard.png",
       goblin: "assets/sprites/units/goblin.png",
       archer_goblin: "assets/sprites/units/archer-goblin.png",
@@ -59,6 +73,7 @@ const Constants = {
     },
     sfx: {
       knight: "assets/sfx/knight-slash.wav",
+      james: "assets/sfx/knight-slash.wav",
       fireball: "assets/sfx/fireball-explode.wav",
       lightningLaunch: "assets/sfx/lightning-launch.wav",
       lightning: "assets/sfx/lightning-impact.wav",

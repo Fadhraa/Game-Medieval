@@ -19,6 +19,7 @@ class Unit extends Entity {
     this.walk = 0;
     this.swing = 1;
     this.flash = 0;
+    this.stunnedUntil = 0;
     this.engaged = false;
     this.attackTarget = null;
     this.hasAttackSlot = false;
@@ -40,14 +41,14 @@ class Unit extends Entity {
     };
   }
 
-  findOpponent(battle) {
+  findOpponent(battle, minimumDistance = -2) {
     let opponent = null;
     let distance = Infinity;
 
     for (const other of battle.units) {
       if (other === this || other.hp <= 0) continue;
       const ahead = (other.x - this.x) * this.side;
-      if (other.side !== this.side && ahead >= -2 && ahead < distance) {
+      if (other.side !== this.side && ahead >= minimumDistance && ahead < distance) {
         opponent = other;
         distance = ahead;
       }

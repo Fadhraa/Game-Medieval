@@ -23,6 +23,7 @@
 <script src="src/entities/Unit.js" defer></script>
 <script src="src/entities/Healer.js" defer></script>
 <script src="src/entities/Knight.js" defer></script>
+<script src="src/entities/James.js" defer></script>
 <script src="src/entities/Wizard.js" defer></script>
 <script src="src/entities/Kira.js" defer></script>
 <script src="src/entities/Goblin.js" defer></script>
@@ -60,13 +61,28 @@
   </section>
 
   <div id="lobbyProgress" class="lobby-progress">
-    <p id="resetStatus" class="menu-status" role="status"></p>
-    <button class="secondary" id="resetProgress" type="button">Reset karakter, Lumbung, dan koin</button>
+    <div class="progress-actions">
+      <button class="secondary" id="exportProgress" type="button">Simpan Progres</button>
+      <button class="secondary" id="importProgress" type="button">Impor Progres</button>
+      <input id="progressFile" type="file" accept=".json,application/json" hidden>
+      <button class="secondary" id="resetProgress" type="button">Reset karakter, Lumbung, dan koin</button>
+    </div>
+    <p id="progressStatus" class="menu-status" role="status"></p>
   </div>
+
+  <dialog id="importDialog" class="menu-panel game-dialog" aria-labelledby="importTitle" aria-describedby="importSummary">
+    <h2 id="importTitle">Impor progres?</h2>
+    <p id="importSummary">Simpanan dalam file akan menggantikan progres di browser ini.</p>
+    <p id="importDetails"></p>
+    <div class="lobby-actions">
+      <button class="secondary" id="cancelImport" type="button" autofocus>Batal</button>
+      <button class="gold-button" id="confirmImport" type="button">Ganti Progres</button>
+    </div>
+  </dialog>
 
   <dialog id="resetDialog" class="menu-panel game-dialog" aria-labelledby="resetTitle" aria-describedby="resetSummary">
     <h2 id="resetTitle">Reset karakter, Lumbung, dan koin?</h2>
-    <p id="resetSummary">Ksatria, Wizard, Kira, dan Lumbung kembali ke level 1. Saldo koin menjadi 0.</p>
+    <p id="resetSummary">Ksatria, Wizard, Kira, James, dan Lumbung kembali ke level 1. Ladang kembali menjadi 1 petak dan saldo menjadi 0 koin.</p>
     <div class="lobby-actions">
       <button class="secondary" id="cancelReset" type="button" autofocus>Batal</button>
       <button class="danger-button" id="confirmReset" type="button">Reset progres</button>
@@ -100,11 +116,18 @@
     <div class="menu-heading">
       <div>
         <h1 id="granaryTitle" tabindex="-1">Lumbung</h1>
-        <p>Tingkatkan jumlah roti yang dihasilkan setiap kali petani menyetor gandum.</p>
+        <p>Tingkatkan hasil setoran petani dan perluas ladang.</p>
       </div>
       <button class="secondary" id="leaveGranary" type="button">Kembali ke lobi</button>
     </div>
-    <div id="granaryCards" class="upgrade-grid"></div>
+    <div id="granaryCards" class="upgrade-grid">
+      <article id="plotUpgrade" class="upgrade-card">
+        <div class="upgrade-header"><h2>Petak Kedua</h2></div>
+        <p id="plotCount" class="current-stat"></p>
+        <p id="plotRequirement" class="next-stat"></p>
+        <button id="buySecondPlot" class="gold-button" type="button" disabled></button>
+      </article>
+    </div>
     <p id="granaryStatus" class="menu-status" role="status"></p>
   </section>
 
@@ -185,6 +208,11 @@
       <div class="portrait kira"><canvas data-art="kira" width="24" height="24" aria-hidden="true"></canvas></div>
       <div class="unit-info"><strong>Kira</strong><span id="kiraStats">Healer · Lightning · 20 hit</span></div>
       <button id="summonKira" type="button" disabled><span id="kiraLabel">Panggil</span><span class="price">6 roti</span></button>
+    </div>
+    <div class="card recruit">
+      <div class="portrait james"><canvas data-art="james" width="24" height="24" aria-hidden="true"></canvas></div>
+      <div class="unit-info"><strong>James · Tanker</strong><span id="jamesStats">HP maks. 120 · ATK 7,5</span><span>Stun 1 dtk tiap serangan ke-4</span></div>
+      <button id="summonJames" type="button" disabled><span id="jamesLabel">Panggil</span><span class="price">4 roti</span></button>
     </div>
   </section>
   <p class="hint"><kbd>Spasi</kbd> Ksatria <span aria-hidden="true">·</span> <kbd>W</kbd> Wizard <span aria-hidden="true">·</span> <kbd>P</kbd> Jeda</p>

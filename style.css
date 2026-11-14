@@ -48,10 +48,10 @@ h1 i { color: var(--rust); font-weight: 400; }
 .mission { width: min(355px, calc(100% - 22px)); padding: 19px 16px; text-align: center; color: #fff3d9; border: 1px solid #c49b58; border-radius: 8px; background: #292b22f5; box-shadow: 0 0 0 4px #25271fb3, 0 9px 26px #1a201c55; }
 .mission h2 { margin: 0; font: 700 clamp(21px, 3.6vw, 32px)/1.08 Georgia, serif; letter-spacing: -.025em; }
 .mission p { margin: 8px 0 14px; font-size: 13px; color: #e8dcc2; }
-#play, #summon, #summonWizard, #summonKira, #summonFarmer { border: 1px solid #a57234; background: var(--gold); color: #38291b; box-shadow: inset 0 -3px 0 #d5994f; border-radius: 5px; padding: 9px 12px 11px; font-weight: 800; }
+#play, .recruit > button { border: 1px solid #a57234; background: var(--gold); color: #38291b; box-shadow: inset 0 -3px 0 #d5994f; border-radius: 5px; padding: 9px 12px 11px; font-weight: 800; }
 #play span { margin-left: 7px; }
-#play:hover, #summon:not(:disabled):hover, #summonWizard:not(:disabled):hover, #summonKira:not(:disabled):hover, #summonFarmer:not(:disabled):hover { background: #ffdd92; }
-#play:active, #summon:not(:disabled):active, #summonWizard:not(:disabled):active, #summonKira:not(:disabled):active, #summonFarmer:not(:disabled):active { transform: translateY(1px); }
+#play:hover, .recruit > button:not(:disabled):hover { background: #ffdd92; }
+#play:active, .recruit > button:not(:disabled):active { transform: translateY(1px); }
 #restart { display: block; margin: 9px auto 0; color: #f1ddbb; background: none; border: 0; padding: 4px; text-decoration: underline; font-size: 12px; }
 #scene:active { cursor: grabbing; }
 .camera-controls { display: flex; align-items: center; gap: 10px; padding: 7px 12px; background: #323b32; }
@@ -67,16 +67,17 @@ h1 i { color: var(--rust); font-weight: 400; }
 .portrait.knight { background: #dce8e2; border-color: #b8cdc5; }
 .portrait.wizard { background: #e2dff2; border-color: #bdb9d9; }
 .portrait.kira { background: #dce8f0; border-color: #a8c8d8; }
+.portrait.james { background: #d9e7df; border-color: #a7c2b4; }
 .portrait canvas { width: 42px; height: 42px; }
 .supply-info, .unit-info { flex: 1; }
 .resource-label, .unit-info span { color: var(--muted); font-size: 12px; }
 .resource-value { display: flex; align-items: baseline; gap: 5px; font-size: 13px; }
 .resource-value strong { font: 700 26px/1 Georgia, serif; }
-.production { flex: 0 1 120px; font: 11px ui-monospace, monospace; text-align: right; color: #6a5534; }
+.production { flex: 0 1 120px; font: 11px ui-monospace, monospace; white-space: pre-line; text-align: right; color: #6a5534; }
 .unit-info strong, .unit-info span { display: block; }
 .unit-info strong { font-size: 14px; }
-#summon, #summonWizard, #summonKira, #summonFarmer { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; font-size: 13px; white-space: nowrap; }
-#summon:disabled, #summonWizard:disabled, #summonKira:disabled, #summonFarmer:disabled { background: #e9ddc3; border-color: #d6c8ac; box-shadow: inset 0 -3px 0 #dbccb0; color: #675c49; }
+.recruit > button { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; font-size: 13px; white-space: nowrap; }
+.recruit > button:disabled { background: #e9ddc3; border-color: #d6c8ac; box-shadow: inset 0 -3px 0 #dbccb0; color: #675c49; }
 .price { border-left: 1px solid #6f512b54; padding-left: 8px; font-size: 11px; white-space: nowrap; }
 .hint { display: flex; justify-content: center; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; margin: 15px 0 0; }
 kbd { background: #fff9ec; border: 1px solid #dacdb4; border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; font: 11px ui-monospace, monospace; }
@@ -107,7 +108,7 @@ kbd { background: #fff9ec; border: 1px solid #dacdb4; border-bottom-width: 2px; 
   .portrait { height: 42px; flex-basis: 42px; }
   .portrait canvas { width: 35px; height: 35px; }
   .battle-foot { padding-inline: 9px; font-size: 11px; }
-  #summon { min-height: 42px; }
+  .recruit > button { min-height: 42px; }
 }
 .secondary::before {
   content: "";
@@ -161,10 +162,11 @@ kbd { background: #fff9ec; border: 1px solid #dacdb4; border-bottom-width: 2px; 
 .upgrade-card button { margin-top:9px; }
 .menu-status { margin:12px 0 0; color:var(--muted); }
 .menu-status:empty { display:none; }
-.lobby-progress { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; }
+.lobby-progress { margin-top:14px; }
+.progress-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 #resetProgress { margin-left:auto; color:#8e402c; }
 #resetProgress::before, .game-dialog .secondary::before { display:none; }
-.lobby-progress .menu-status { margin:0; }
+.lobby-progress .menu-status { margin:8px 0 0; }
 .game-dialog { width:min(540px, calc(100% - 32px)); max-height:calc(100dvh - 32px); color:var(--ink); margin:auto; box-shadow:0 16px 50px #18221d65; }
 .game-dialog::backdrop { background:#151e18ad; }
 .game-dialog h2 { margin:0; font:700 clamp(25px,4vw,36px)/1.1 Georgia,serif; }

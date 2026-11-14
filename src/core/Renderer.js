@@ -9,13 +9,15 @@ class Renderer {
     this.ground = Constants.GROUND_Y;
 
     this.sprites = {};
-    this.loadSpriteSheets();
-
-    // Cache procedural landscape background
+    this.sky = document.createElement("canvas");
     this.backdrop = document.createElement("canvas");
-    this.backdrop.width = Constants.WORLD_WIDTH;
-    this.backdrop.height = this.height;
-    this.buildBackground(this.backdrop.getContext("2d"));
+    for (const layer of [this.sky, this.backdrop]) {
+      layer.width = Constants.WORLD_WIDTH;
+      layer.height = this.height;
+    }
+    this.buildSky(this.sky.getContext("2d"));
+    this.backdropDirty = true;
+    this.loadSpriteSheets();
 
     this.previousMode = null;
     this.messages = {
@@ -31,11 +33,12 @@ class Renderer {
     const urls = Constants.ASSETS.sprites;
     for (const [key, path] of Object.entries(urls)) {
       const img = new Image();
-      img.src = path;
       img.addEventListener("load", () => {
+        if (path.includes("/background/")) this.backdropDirty = true;
         this.renderIcons();
       });
       this.sprites[key] = img;
+      img.src = path;
     }
   }
 
@@ -44,12 +47,11 @@ class Renderer {
     ctx.fillRect(Math.round(x), Math.round(y), w, h);
   }
 
-  poly(ctx, color, points) {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-    ctx.closePath();
-    ctx.fill();
+  drawRidge(ctx, key, y, height) {
+    const sprite = this.sprites[key];
+    if (sprite?.complete && sprite.naturalWidth) {
+      ctx.drawImage(sprite, 0, y, Constants.WORLD_WIDTH, height);
+    }
   }
 
   randomFrom(seed) {
@@ -59,83 +61,83 @@ class Renderer {
     };
   }
 
-  pine(ctx, x, y, size, shadow, light) {
-    this.rect(ctx, shadow, x - 1, y - size + 2, 3, size);
-    for (let row = 4; row < size - 1; row += 2) {
-      const spread = Math.max(1, Math.floor(row * 0.26 + (row % 7) * 0.68));
-      this.rect(ctx, shadow, x - spread, y - size + row, spread * 2 + 1, 2);
-      if (row % 4 === 0) this.rect(ctx, light, x - spread + 1, y - size + row, spread, 1);
+  drawTree(ctx, key, x, ground, height) {
+    const tree = this.sprites[key];
+    if (!tree?.complete || !tree.naturalWidth) return;
+
+    const width = height * tree.naturalWidth / tree.naturalHeight;
+    const worldX = x * Constants.WORLD_WIDTH / this.width;
+    ctx.drawImage(tree, Math.round(worldX - width / 2), Math.round(ground - height),
+      Math.round(width), Math.round(height));
+  }
+
+  buildSky(ctx) {
+    const sky = ["#acc9bc","#b5cebc","#bdd2bd","#c7d5bc","#d2d9be","#dfdabd","#eadab9","#f0dbb9","#f5dfb8"];
+    sky.forEach((color, i) => this.rect(ctx, color, 0, i * 19, Constants.WORLD_WIDTH, 19));
+    for (let y = -24; y <= 24; y += 2) {
+      const span = Math.floor(Math.sqrt(625 - y * y));
+      this.rect(ctx, "#ffeac0", 413 - span, 62 + y, span * 2, 2);
     }
   }
 
-  broadleaf(ctx, x, y, size, shade, mid, light) {
-    this.rect(ctx, "#4b4231", x - 2, y - size + 11, 5, size - 11);
-    this.rect(ctx, "#6a5538", x, y - size + 18, 2, size - 19);
-    const rand = this.randomFrom(x * 317 + y);
-    for (let i = 0; i < 24; i++) {
-      const dx = Math.round((rand() - 0.5) * size * 0.85);
-      const dy = Math.round((rand() - 0.5) * size * 0.5);
-      const w = Math.floor(size * (0.21 + rand() * 0.23));
-      this.rect(ctx, shade, x + dx - w / 2, y - size + dy, w, 8);
-      this.rect(ctx, mid, x + dx - w / 2 + 1, y - size + dy, w - 3, 4);
-      if (dy < 0) this.rect(ctx, light, x + dx - w / 2 + 2, y - size + dy, w - 6, 2);
+  drawSkySprites(ctx, time, cameraX) {
+    const worldWidth = Constants.WORLD_WIDTH;
+    const clouds = [
+      ["cloud", 28, 36, 109], ["cloudWispy", 177, 72, 73],
+      ["cloud", 302, 57, 141], ["cloudWispy", 479, 28, 106],
+      ["cloud", 608, 77, 139], ["cloudWispy", 797, 41, 114],
+      ["cloud", 928, 62, 104]
+    ];
+    const cloudTravel = worldWidth + 240;
+    for (const [key, origin, y, width] of clouds) {
+      const cloud = this.sprites[key];
+      if (!cloud?.complete || !cloud.naturalWidth) continue;
+      const x = (origin + 64 + time * 2.4) % cloudTravel - 144 - cameraX * 0.34;
+      const height = width * cloud.naturalHeight / cloud.naturalWidth;
+      ctx.drawImage(cloud, Math.round(x), y, width, Math.round(height));
+    }
+
+    const bird = this.sprites.swallow;
+    if (!bird?.complete || !bird.naturalWidth) return;
+    const frameWidth = bird.naturalWidth / 4;
+    const flockTravel = worldWidth + 216;
+    for (const [startX, altitude, speed] of [[218, 65, 17], [720, 54, 20]]) {
+      const flightX = (startX + time * speed) % flockTravel - 84 - cameraX * 0.62;
+      for (let i = 0; i < 3; i++) {
+        const frame = Math.floor(time * 9 + i) % 4;
+        const y = altitude + i * 5 + Math.sin(time * 1.8 + i) * 2;
+        ctx.drawImage(bird, frame * frameWidth, 0, frameWidth, bird.naturalHeight,
+          Math.round(flightX - i * 16), Math.round(y), 18, 12);
+      }
     }
   }
 
   buildBackground(ctx) {
     const rand = this.randomFrom(1629);
-    ctx.save();
-    ctx.scale(Constants.WORLD_WIDTH / this.width, 1);
-    const sky = ["#acc9bc","#b5cebc","#bdd2bd","#c7d5bc","#d2d9be","#dfdabd","#eadab9","#f0dbb9","#f5dfb8"];
-    sky.forEach((color, i) => this.rect(ctx, color, 0, i * 19, this.width, 19));
+    ctx.clearRect(0, 0, Constants.WORLD_WIDTH, this.height);
+    ctx.imageSmoothingEnabled = false;
 
-    ctx.save();
-    ctx.translate(413, 0);
-    ctx.scale(this.width / Constants.WORLD_WIDTH, 1);
-    for (let y = -24; y <= 24; y += 2) {
-      const span = Math.floor(Math.sqrt(625 - y * y));
-      this.rect(ctx, "#ffeac0", -span, 62 + y, span * 2, 2);
+    this.drawRidge(ctx, "mountainRidge", 46, 143);
+    this.drawRidge(ctx, "rollingHills", 111, 83);
+
+    ctx.globalAlpha = 0.69;
+    for (let x = -5; x < this.width + 6; x += 5 + rand() * 3) {
+      const y = 167 + Math.sin(x / 31) * 7 + rand() * 6;
+      this.drawTree(ctx, "distantPine", x, y, 17 + rand() * 27);
     }
-    ctx.restore();
+    ctx.globalAlpha = 1;
 
-    const clouds = [[42,35,71],[172,60,89],[287,29,65],[410,91,105],[498,45,55],[90,80,45],[332,73,46]];
-    for (const [x, y, w] of clouds) {
-      this.rect(ctx, "#d8debf", x - 10, y + 7, w + 27, 3);
-      this.rect(ctx, "#e9e3c5", x, y + 3, w, 5);
-      this.rect(ctx, "#f0e8ca", x + 11, y, w - 20, 4);
-      this.rect(ctx, "#f0e8ca", x + 22, y - 3, Math.floor(w / 3), 4);
+    ctx.globalAlpha = 0.82;
+    for (let x = -4; x < this.width + 9; x += 7 + rand() * 7) {
+      const y = 181 + Math.sin(x / 24) * 5 + rand() * 8;
+      this.drawTree(ctx, "woodlandPine", x, y, 22 + rand() * 30);
     }
+    ctx.globalAlpha = 1;
 
-    const peaks = [
-      [0,109,83,52,152,124],[72,128,166,69,270,139],[190,137,268,84,358,134],
-      [254,141,339,74,446,141],[367,140,490,79,576,121],[475,140,546,62,611,127]
-    ];
-    for (const [x0, y0, x1, y1, x2, y2] of peaks) {
-      this.poly(ctx, "#96a99d", [[x0,y0],[x1,y1],[x2,y2],[x2,174],[x0,174]]);
-      this.poly(ctx, "#aab8a9", [[x0,y0],[x1,y1],[x1-5,y1+22],[x1+10,y1+47],[x1-30,165],[x0,167]]);
-      this.poly(ctx, "#c4cbb3", [[x1-17,y1+15],[x1,y1],[x1+23,y1+16],[x1+5,y1+12],[x1+10,y1+25],[x1-4,y1+13]]);
+    const oaks = [[11,189,44],[35,189,29],[134,185,39],[153,185,26],[211,187,34],[275,186,25],[365,187,34],[440,187,41],[557,190,46],[574,191,32]];
+    for (const [x, y, height] of oaks) {
+      this.drawTree(ctx, x > 330 ? "autumnOak" : "woodlandOak", x, y, height);
     }
-
-    this.poly(ctx, "#899e86", [[0,124],[32,117],[69,126],[115,112],[151,131],[197,135],[234,116],[274,119],[318,141],[350,126],[397,115],[435,130],[475,121],[519,111],[576,133],[576,187],[0,187]]);
-    for (let x = -5; x < this.width + 6; x += 4) {
-      const y = 147 + Math.sin(x / 31) * 7 + rand() * 6;
-      this.pine(ctx, x, y + 22, 15 + rand() * 25, "#758d76", "#8ba083");
-    }
-
-    this.poly(ctx, "#6c876a", [[0,164],[55,156],[123,169],[183,159],[225,166],[280,159],[355,163],[403,150],[460,162],[517,150],[576,158],[576,215],[0,215]]);
-    for (let x = -4; x < this.width + 9; x += 8 + rand() * 6) {
-      const y = 178 + Math.sin(x / 24) * 5 + rand() * 9;
-      const color = x < 349 ? "#526f58" : "#687153";
-      this.pine(ctx, x, y, 16 + rand() * 27, color, x < 349 ? "#648166" : "#7e8059");
-    }
-
-    const broads = [[11,189,42],[35,189,27],[134,185,33],[153,185,23],[211,187,30],[365,187,27],[440,187,37],[557,190,44],[574,191,31]];
-    for (const [x, y, size] of broads) {
-      const autumn = x > 330;
-      this.broadleaf(ctx, x, y, size, autumn ? "#6b5a39" : "#3e604a", autumn ? "#8c7141" : "#507652", autumn ? "#a28249" : "#729064");
-    }
-
-    ctx.restore();
 
     const worldWidth = Constants.WORLD_WIDTH;
     const density = worldWidth / this.width;
@@ -277,8 +279,7 @@ class Renderer {
     }
   }
 
-  drawFarm(ctx, farm) {
-    const plotX = Constants.FARM.plotX;
+  drawFarm(ctx, farm, plotX) {
     const plot = this.sprites.farmPlot;
     if (plot?.complete && plot.naturalWidth) {
       ctx.drawImage(plot, plotX - 32, this.ground - 8);
@@ -296,24 +297,27 @@ class Renderer {
   render(battle, time, cameraX = 0) {
     const ctx = this.ctx;
 
+    if (this.backdropDirty) {
+      this.buildBackground(this.backdrop.getContext("2d"));
+      this.backdropDirty = false;
+    }
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.sky, -Math.round(cameraX * 0.34), 0);
+    this.drawSkySprites(ctx, time, cameraX);
+
     ctx.save();
     ctx.translate(-Math.round(cameraX), 0);
     ctx.drawImage(this.backdrop, 0, 0);
-
-    for (let i = 0; i < 4; i++) {
-      const x = Math.floor(187 + i * 10 + (time * 7) % 76);
-      const y = 59 + (i % 2) * 4 + Math.floor(Math.sin(time * 3 + i) * 2);
-      this.rect(ctx, "#5d6b5d", x, y, 3, 1);
-      this.rect(ctx, "#5d6b5d", x - 2, y - 1, 2, 1);
-      this.rect(ctx, "#5d6b5d", x + 3, y - 1, 2, 1);
-    }
 
     this.drawCastle(ctx, time);
     ctx.save();
     ctx.translate(Constants.WORLD_WIDTH - this.width, 0);
     this.drawCamp(ctx, time);
     ctx.restore();
-    this.drawFarm(ctx, battle.farm);
+    for (const [index, farmer] of battle.farmersByPlot.entries()) {
+      this.drawFarm(ctx, farmer, Constants.FARM.plots[index].x);
+    }
 
     // Far half of each healing rune goes behind the units.
     const healSheet = this.sprites.healingAura;
@@ -335,6 +339,7 @@ class Renderer {
     for (const unit of units) {
       const sheet = this.sprites[unit.kind];
       unit.draw(ctx, this.ground, time, sheet);
+      if (unit.stunnedUntil > battle.elapsed) this.drawStun(ctx, unit, time);
     }
 
     // Near edge sits in front of feet, so overlapping enemies cannot hide
@@ -424,17 +429,23 @@ class Renderer {
     textValue(ui.clock, clock);
 
     textValue(ui.breadCount, String(battle.bread));
-    textValue(ui.farmStatus, battle.farm?.status ?? "Panggil petani untuk panen");
-    textValue(ui.farmerLabel, battle.farm ? "Aktif" : "Panggil");
-    textValue(ui.farmerCount, battle.farm ? "1/1 petani" : "0/1 petani");
-    ui.summonFarmer.disabled = !battle.canRecruitFarmer;
+    const farmers = battle.farmersByPlot;
+    const farmerCount = farmers.filter(Boolean).length;
+    const farmStatus = farmerCount === 0 ? "1 roti dicadangkan untuk memanggil petani" :
+      farmers.length === 1 ? farmers[0].status :
+        farmers.map((farmer, index) => `Petak ${index + 1} · ${farmer?.status ?? "Kosong"}`).join("\n");
+    textValue(ui.farmStatus, farmStatus);
+    textValue(ui.farmerLabel, farmerCount === farmers.length ? "Aktif" : "Panggil");
+    textValue(ui.farmerCount, `${farmerCount}/${farmers.length} petani`);
+    ui.summonFarmer.disabled = battle.openFarmPlot === -1;
 
     // Unit counts
     const knights = battle.units.filter((u) => u.kind === "knight").length;
     const wizards = battle.units.filter((u) => u.kind === "wizard").length;
     const kiras = battle.units.filter((u) => u.kind === "kira").length;
+    const james = battle.units.filter((u) => u.kind === "james").length;
     const monsters = battle.units.filter((unit) => unit.side === -1).length;
-    textValue(ui.unitCount, `${knights} ksatria · ${wizards} wizard · ${kiras} kira · ${monsters} monster di medan`);
+    textValue(ui.unitCount, `${knights} ksatria · ${wizards} wizard · ${kiras} kira · ${james} James · ${monsters} monster di medan`);
 
     // Knight button
     const summonRemaining = Math.max(0, battle.nextSummon - battle.elapsed);
@@ -462,6 +473,13 @@ class Renderer {
       battle.availableTroopBread < Constants.WIZARD_COST ||
       wizardRemaining > 0;
 
+    const jamesRemaining = Math.max(0, battle.nextJames - battle.elapsed);
+    textValue(ui.jamesLabel, jamesRemaining > 0
+      ? "Tunggu " + (Math.ceil(jamesRemaining * 10) / 10).toFixed(1).replace(".", ",") + " dtk"
+      : "Panggil");
+    ui.summonJames.disabled = battle.mode !== "playing" ||
+      battle.availableTroopBread < Constants.JAMES_COST || jamesRemaining > 0;
+
     // Kira button
     if (ui.summonKira) {
       const kiraRemaining = Math.max(0, battle.nextKira - battle.elapsed);
@@ -476,6 +494,17 @@ class Renderer {
         battle.availableTroopBread < Constants.KIRA_COST ||
         kiraRemaining > 0;
     }
+  }
+
+  drawStun(ctx, unit, time) {
+    const x = Math.round(unit.x);
+    const y = this.ground + unit.depth - unit.getRenderConfig().barYOffset - 7;
+    const bob = Math.round(2 * Math.sin(time * 12));
+    this.rect(ctx, "#9d643a", x - 1, y - bob - 2, 3, 7);
+    this.rect(ctx, "#fff09a", x - 2, y - bob, 5, 2);
+    this.rect(ctx, "#fff09a", x, y - bob - 2, 1, 6);
+    this.rect(ctx, "#e9b551", x - 6, y + bob + 1, 2, 2);
+    this.rect(ctx, "#e9b551", x + 5, y + bob + 1, 2, 2);
   }
 
   renderIcons() {
@@ -540,6 +569,9 @@ class Renderer {
     }
     if (kind === "farmer") {
       return { frameWidth: 48, frameHeight: 48, originX: 24, feetOrigin: 42, portraitX: 12, portraitScale: 0.62 };
+    }
+    if (kind === "james") {
+      return { ...James.spriteGeometry, portraitX: 11, portraitScale: 0.39 };
     }
     if (kind === "kira") {
       return { ...Kira.spriteGeometry, portraitX: 12, portraitScale: 0.62 };

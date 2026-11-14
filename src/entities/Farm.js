@@ -1,9 +1,13 @@
 "use strict";
 
 class Farm extends Unit {
-  constructor(rank = 0) {
-    super({ kind: "farmer", side: 1, start: Constants.FARM.homeX, depth: 6, hp: Constants.FARM.hp });
-    this.breadPerDelivery = Progress.stats("farm", rank).breadPerDelivery;
+  constructor(rank = 0, plotIndex = 0) {
+    const { breadPerDelivery, speed, harvestSeconds } = Progress.farmStats(rank);
+    super({ kind: "farmer", side: 1, start: Constants.FARM.homeX, depth: 6 + 2 * plotIndex, hp: Constants.FARM.hp, speed });
+    this.plotIndex = plotIndex;
+    this.workX = Constants.FARM.plots[plotIndex].workX;
+    this.breadPerDelivery = breadPerDelivery;
+    this.harvestSeconds = harvestSeconds;
     this.phase = "outbound";
     this.phaseTime = 0;
   }
@@ -38,8 +42,8 @@ class Farm extends Unit {
     this.phaseTime += delta;
     switch (this.phase) {
       case "outbound":
-        this.x = Math.min(config.workX, this.x + config.speed * delta);
-        if (this.x === config.workX) this.enter("planting");
+        this.x = Math.min(this.workX, this.x + this.speed * delta);
+        if (this.x === this.workX) this.enter("planting");
         break;
       case "planting":
         if (this.phaseTime >= config.plantSeconds) this.enter("growing");
@@ -48,10 +52,10 @@ class Farm extends Unit {
         if (this.phaseTime >= config.growthSeconds) this.enter("harvesting");
         break;
       case "harvesting":
-        if (this.phaseTime >= config.harvestSeconds) this.enter("returning");
+        if (this.phaseTime >= this.harvestSeconds) this.enter("returning");
         break;
       case "returning":
-        this.x = Math.max(config.homeX, this.x - config.speed * delta);
+        this.x = Math.max(config.homeX, this.x - this.speed * delta);
         if (this.x === config.homeX) {
           battle.bread += this.breadPerDelivery;
           this.enter("delivered");
@@ -77,18 +81,18 @@ class Farm extends Unit {
     const config = Constants.FARM;
     let row = 0;
     let frame = 0;
-    if (this.phase === "outbound") frame = Math.floor(this.phaseTime * 8) % 6;
+    if (this.phase === "outbound") frame = Math.floor(this.phaseTime * 8 * this.speed / config.speed) % 6;
     if (this.phase === "planting") {
       row = 1;
       frame = Math.min(5, Math.floor(this.phaseTime * 6 / config.plantSeconds));
     }
     if (this.phase === "harvesting") {
       row = 2;
-      frame = Math.min(5, Math.floor(this.phaseTime * 6 / config.harvestSeconds));
+      frame = Math.min(5, Math.floor(this.phaseTime * 6 / this.harvestSeconds));
     }
     if (this.phase === "returning") {
       row = 3;
-      frame = Math.floor(this.phaseTime * 8) % 6;
+      frame = Math.floor(this.phaseTime * 8 * this.speed / config.speed) % 6;
     }
 
     return [row, frame];

@@ -1,10 +1,14 @@
 "use strict";
 
 const Progress = {
+  fileFormat: "roti-benteng-progress",
+  fileVersion: 1,
+  maxFileBytes: 16384,
   storageKey: "roti-benteng-progress-v1",
   victoryReward: 50,
   killReward: { goblin: 1, minotaur: 5, archer_goblin: 1 },
   maxRank: 3,
+  secondPlotCost: 80,
   historyLimit: 5,
   upgrades: {
     knight: {
@@ -30,8 +34,15 @@ const Progress = {
         healPercent: { base: 5, step: 0.5 }
       }
     },
+    james: {
+      name: "James · Tanker",
+      stats: {
+        hp: { base: 120, scale: 1.1, step: 3 },
+        damage: { base: 7.5, scale: 1.1, step: 0.5 }
+      }
+    },
     farm: {
-      name: "Hasil Setoran",
+      name: "Petani Gandum",
       stats: { breadPerDelivery: { base: Constants.FARM.breadPerDelivery, step: 1 } }
     }
   },
@@ -47,6 +58,38 @@ const Progress = {
     } catch {
       // Storage may be denied or contain invalid data.
     }
+    return this.normalize(data);
+  },
+
+  exportFile(profile) {
+    return JSON.stringify({ format: this.fileFormat, version: this.fileVersion, profile }, null, 2);
+  },
+
+  importFile(text) {
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error("File progres bukan JSON yang valid.");
+    }
+    if (data?.format !== this.fileFormat) throw new Error("Pilih file progres Roti & Benteng.");
+    if (data.version !== this.fileVersion) throw new Error("Versi file progres ini belum didukung.");
+
+    const profile = data.profile;
+    const integer = (value, max = Number.MAX_SAFE_INTEGER) =>
+      Number.isSafeInteger(value) && value >= 0 && value <= max;
+    if (!integer(profile?.coins) || !integer(profile.clearedThrough, campaignStages.length) ||
+        typeof profile.hasSecondPlot !== "boolean" ||
+        (profile.hasSecondPlot && !this.canUnlockSecondPlot(profile)) ||
+        !Object.keys(this.upgrades).every(kind => integer(profile.ranks?.[kind], this.maxRank)) ||
+        !Array.isArray(profile.matchHistory) || profile.matchHistory.length > this.historyLimit ||
+        this.readMatchHistory(profile.matchHistory).length !== profile.matchHistory.length) {
+      throw new Error("Isi file progres tidak valid.");
+    }
+    return this.normalize(profile);
+  },
+
+  normalize(data) {
     const ranks = {};
     for (const kind of Object.keys(this.upgrades)) {
       const rank = data?.ranks?.[kind];
@@ -57,6 +100,7 @@ const Progress = {
     return {
       coins: Number.isSafeInteger(coins) && coins >= 0 ? coins : 0,
       ranks,
+      hasSecondPlot: data?.hasSecondPlot === true,
       clearedThrough: Number.isSafeInteger(clearedThrough)
         ? Math.min(campaignStages.length, Math.max(0, clearedThrough)) : 0,
       matchHistory: this.readMatchHistory(data?.matchHistory)
@@ -77,8 +121,8 @@ const Progress = {
     return history.slice(-this.historyLimit).filter(match =>
       ["knight", "wizard", "kira"].every(kind =>
         Number.isSafeInteger(match?.[kind]) && match[kind] >= 0
-      )
-    ).map(({ knight, wizard, kira }) => ({ knight, wizard, kira }));
+      ) && (match.james === undefined || Number.isSafeInteger(match.james) && match.james >= 0)
+    ).map(({ knight, wizard, kira, james = 0 }) => ({ knight, wizard, kira, james }));
   },
 
   recordMatch(profile, recruits) {
@@ -87,6 +131,7 @@ const Progress = {
 
   resetUpgrades(profile) {
     profile.coins = 0;
+    profile.hasSecondPlot = false;
     for (const kind of Object.keys(this.upgrades)) profile.ranks[kind] = 0;
   },
 
@@ -102,6 +147,26 @@ const Progress = {
       for (let level = 0; level < rank; level++) value = value * scale + step;
       return [stat, value];
     }));
+  },
+
+  farmStats(rank = 0) {
+    const harvestUpgrades = Number(rank >= 1) + Number(rank >= 3);
+    return {
+      ...this.stats("farm", rank),
+      speed: Constants.FARM.speed * (rank >= 2 ? 1.1 : 1),
+      harvestSeconds: Constants.FARM.harvestSeconds * 0.9 ** harvestUpgrades
+    };
+  },
+
+  canUnlockSecondPlot(profile) {
+    return this.isUnlocked(profile, Campaign[1].stages[0]);
+  },
+
+  buySecondPlot(profile) {
+    if (profile.hasSecondPlot || !this.canUnlockSecondPlot(profile) || profile.coins < this.secondPlotCost) return false;
+    profile.coins -= this.secondPlotCost;
+    profile.hasSecondPlot = true;
+    return true;
   },
 
   buy(profile, kind) {

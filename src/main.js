@@ -9,9 +9,11 @@ document.addEventListener("DOMContentLoaded", () => {
       "barracksScreen", "barracksTitle", "leaveBarracks", "upgradeCards", "upgradeStatus",
       "resultDialog", "resultTitle", "resultDetails", "resultLobby", "resultBarracks", "resultProgress", "resultLevels", "resultNext", "resultRetry",
       "granaryScreen", "granaryTitle", "enterGranary", "leaveGranary", "granaryCards", "granaryStatus", "farmStats",
-      "lobbyProgress", "resetStatus", "resetProgress", "resetDialog", "cancelReset", "confirmReset",
+      "plotUpgrade", "plotCount", "plotRequirement", "buySecondPlot",
+      "lobbyProgress", "progressStatus", "resetProgress", "resetDialog", "cancelReset", "confirmReset",
+      "exportProgress", "importProgress", "progressFile", "importDialog", "importDetails", "confirmImport", "cancelImport",
       "saveStatus", "battleScreen", "title", "leaveBattle", "coinBalance",
-      "knightStats", "wizardStats", "kiraStats",
+      "knightStats", "wizardStats", "kiraStats", "jamesStats", "summonJames", "jamesLabel",
       "cameraPosition",
       "cameraHome",
       "cameraEnemy",
@@ -45,13 +47,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const battle = new Battle("ready");
   const renderer = new Renderer(ui.scene);
-  const profile = Progress.load();
+  let profile = Progress.load();
   let screen = "lobby";
   let selectedStage = campaignStages[0];
   let lastFrame = performance.now();
 
   function saveProfile() {
-    ui.saveStatus.hidden = Progress.save(profile);
+    const saved = Progress.save(profile);
+    ui.saveStatus.hidden = saved;
+    return saved;
   }
 
   function syncCoins() {
@@ -80,16 +84,25 @@ document.addEventListener("DOMContentLoaded", () => {
     breadPerDelivery: "Roti per setoran"
   };
 
-  function statText(kind, rank) {
+  function statText(kind, rank, maxDecimals = 0) {
+    if (kind === "farm") {
+      const { breadPerDelivery, speed, harvestSeconds } = Progress.farmStats(rank);
+      const speedBonus = Math.round((speed / Constants.FARM.speed - 1) * 100);
+      const harvestBonus = Math.round((1 - harvestSeconds / Constants.FARM.harvestSeconds) * 100);
+      const stats = [breadPerDelivery + " roti per setoran"];
+      if (speedBonus) stats.push("Kecepatan jalan +" + speedBonus + "%");
+      if (harvestBonus) stats.push("Durasi panen −" + harvestBonus + "%");
+      return stats.join(" · ");
+    }
     return Object.entries(Progress.stats(kind, rank)).map(([stat, value]) => {
       const percent = stat === "healPercent";
-      const rounded = value.toLocaleString("id-ID", { maximumFractionDigits: percent ? 1 : 0 });
+      const rounded = value.toLocaleString("id-ID", { maximumFractionDigits: percent ? 1 : maxDecimals });
       return statLabels[stat] + " " + rounded + (percent ? "%" : "");
     }).join(" · ");
   }
 
   function refreshUpgrades(container) {
-    for (const card of container.children) {
+    for (const card of container.querySelectorAll("[data-kind]")) {
       const kind = card.dataset.kind;
       const rank = profile.ranks[kind];
       const cost = Progress.cost(rank);
@@ -101,7 +114,19 @@ document.addEventListener("DOMContentLoaded", () => {
       button.disabled = max || profile.coins < cost;
       button.textContent = max ? "Maksimum" : "Upgrade · " + Progress.formatCoins(cost) + " koin";
     }
+    if (container === ui.granaryCards) refreshPlotUpgrade();
     syncCoins();
+  }
+
+  function refreshPlotUpgrade() {
+    const owned = profile.hasSecondPlot;
+    const unlocked = Progress.canUnlockSecondPlot(profile);
+    ui.plotCount.textContent = owned ? "2 petak · Maks. 2 petani" : "1 petak · Maks. 1 petani";
+    ui.plotRequirement.textContent = owned ? "Panggil petani kedua dengan 1 roti." :
+      unlocked ? "Tambah 1 petak dan naikkan batas menjadi 2 petani." :
+        "Tersedia setelah Chapter 2 terbuka.";
+    ui.buySecondPlot.disabled = owned || !unlocked || profile.coins < Progress.secondPlotCost;
+    ui.buySecondPlot.textContent = owned ? "Sudah dibeli" : "Beli · " + Progress.formatCoins(Progress.secondPlotCost) + " koin";
   }
 
   for (const [kind, upgrade] of Object.entries(Progress.upgrades)) {
@@ -121,7 +146,8 @@ document.addEventListener("DOMContentLoaded", () => {
       refreshUpgrades(container);
       status.textContent = upgrade.name + " naik ke level " + (profile.ranks[kind] + 1) + ".";
     });
-    container.append(card);
+    if (isFarm) ui.plotUpgrade.before(card);
+    else container.append(card);
   }
 
   function openBarracks() {
@@ -144,7 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const section = document.createElement("section");
       section.className = "chapter";
       const heading = document.createElement("h2");
-      heading.textContent = chapter.name;
+      heading.textContent = "Chapter " + (Campaign.indexOf(chapter) + 1) + " · " + chapter.name;
       const cards = document.createElement("div");
       cards.className = "campaign-grid";
 
@@ -190,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
       mode === "lost" ? "Benteng Kerajaan Runtuh" : "Pertempuran Imbang";
     ui.resultDetails.replaceChildren();
     ui.resultProgress.textContent = unlockedStage ? "Level " + unlockedStage.id + " " + unlockedStage.name + " terbuka." :
-      firstClear ? "Kedua chapter selesai." : "";
+      firstClear ? "Keempat chapter selesai." : "";
     const next = campaignStages[selectedStage.id];
     ui.resultNext.hidden = !victory || !next || !Progress.isUnlocked(profile, next);
     ui.resultRetry.hidden = victory;
@@ -242,6 +268,12 @@ document.addEventListener("DOMContentLoaded", () => {
     refreshUpgrades(ui.granaryCards);
     showScreen("granary", ui.granaryTitle);
   });
+  ui.buySecondPlot.addEventListener("click", () => {
+    if (screen !== "granary" || !Progress.buySecondPlot(profile)) return;
+    saveProfile();
+    refreshUpgrades(ui.granaryCards);
+    ui.granaryStatus.textContent = "Petak kedua dibuka. Batas petani naik menjadi 2.";
+  });
   ui.leaveGranary.addEventListener("click", openLobby);
   ui.resultDialog.addEventListener("cancel", (event) => event.preventDefault());
   ui.resultLobby.addEventListener("click", () => {
@@ -253,8 +285,65 @@ document.addEventListener("DOMContentLoaded", () => {
     battle.mode = "ready";
     openBarracks();
   });
+  let pendingImport = null;
+  ui.exportProgress.addEventListener("click", () => {
+    const blob = new Blob([Progress.exportFile(profile)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "roti-benteng-progress.json";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    ui.progressStatus.textContent = "File progres siap diunduh.";
+  });
+
+  ui.importProgress.addEventListener("click", () => ui.progressFile.click());
+  ui.progressFile.addEventListener("change", async () => {
+    const file = ui.progressFile.files[0];
+    ui.progressFile.value = "";
+    if (!file) return;
+    ui.progressStatus.textContent = "";
+    ui.importProgress.disabled = true;
+    try {
+      if (file.size > Progress.maxFileBytes) {
+        ui.progressStatus.textContent = "File progres terlalu besar.";
+        return;
+      }
+      const text = await file.text().catch(() => null);
+      if (text === null) {
+        ui.progressStatus.textContent = "File progres tidak bisa dibaca.";
+        return;
+      }
+      pendingImport = Progress.importFile(text);
+      if (screen !== "lobby") return;
+      ui.importDetails.textContent = Progress.formatCoins(pendingImport.coins) +
+        " koin · " + pendingImport.clearedThrough + " dari " + campaignStages.length + " level selesai";
+      ui.importDialog.showModal();
+    } catch (error) {
+      ui.progressStatus.textContent = error.message;
+    } finally {
+      ui.importProgress.disabled = false;
+    }
+  });
+  ui.cancelImport.addEventListener("click", () => ui.importDialog.close());
+  ui.importDialog.addEventListener("close", () => {
+    pendingImport = null;
+    ui.importProgress.focus();
+  });
+  ui.confirmImport.addEventListener("click", () => {
+    if (!pendingImport || !ui.importDialog.open) return;
+    profile = pendingImport;
+    const saved = saveProfile();
+    syncCoins();
+    ui.importDialog.close();
+    ui.progressStatus.textContent = saved ? "Progres berhasil diimpor." :
+      "Progres diimpor untuk sesi ini. Browser tidak dapat menyimpannya.";
+  });
+
   ui.resetProgress.addEventListener("click", () => {
-    ui.resetStatus.textContent = "";
+    ui.progressStatus.textContent = "";
     ui.resetDialog.showModal();
   });
   ui.cancelReset.addEventListener("click", () => ui.resetDialog.close());
@@ -262,7 +351,7 @@ document.addEventListener("DOMContentLoaded", () => {
     Progress.resetUpgrades(profile);
     saveProfile();
     syncCoins();
-    ui.resetStatus.textContent = "Karakter dan Lumbung kembali ke level 1. Saldo: 0 koin.";
+    ui.progressStatus.textContent = "Karakter dan Lumbung kembali ke level 1. Ladang kembali menjadi 1 petak dan saldo menjadi 0 koin.";
     ui.resetDialog.close();
   });
   ui.leaveBattle.addEventListener("click", openCampaign);
@@ -317,11 +406,12 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.title.textContent = "Level " + selectedStage.id + " · " + selectedStage.name;
     ui.battleBriefing.textContent = selectedStage.briefing;
     showScreen("battle");
-    battle.start(profile.ranks, profile.matchHistory, selectedStage);
-    ui.farmStats.textContent = Constants.FARM.hp + " HP · +" + Progress.stats("farm", profile.ranks.farm).breadPerDelivery + " roti per setoran";
+    battle.start(profile.ranks, profile.matchHistory, selectedStage, profile.hasSecondPlot);
+    ui.farmStats.textContent = Constants.FARM.hp + " HP · " + statText("farm", profile.ranks.farm);
     ui.knightStats.textContent = statText("knight", profile.ranks.knight);
     ui.wizardStats.textContent = statText("wizard", profile.ranks.wizard);
     ui.kiraStats.textContent = statText("kira", profile.ranks.kira);
+    ui.jamesStats.textContent = statText("james", profile.ranks.james, 2);
     moveCamera(0);
     lastFrame = performance.now();
     renderer.syncHud(battle, ui);
@@ -355,6 +445,9 @@ document.addEventListener("DOMContentLoaded", () => {
   ui.pause.addEventListener("click", togglePause);
   ui.summon.addEventListener("click", summonKnight);
   ui.summonWizard.addEventListener("click", summonWizard);
+  ui.summonJames.addEventListener("click", () => {
+    if (battle.recruit("james")) renderer.syncHud(battle, ui);
+  });
   ui.summonFarmer.addEventListener("click", () => {
     if (battle.recruit("farmer")) renderer.syncHud(battle, ui);
   });

@@ -6,11 +6,13 @@ class Battle {
     this.elapsed = 0;
 
     this.bread = 4;
+    this.farmerLimit = 1;
     this.nextSummon = 0;
     this.nextWizard = 0;
     this.nextKira = 0;
+    this.nextJames = 0;
     this.knightsRecruited = 0;
-    this.recruits = { knight: 0, wizard: 0, kira: 0 };
+    this.recruits = { knight: 0, wizard: 0, kira: 0, james: 0 };
     this.goblinsSpawned = 0;
     this.archersSpawned = 0;
     this.minotaursSpawned = 0;
@@ -28,17 +30,19 @@ class Battle {
     this.knightAttackQueues = new Map();
   }
 
-  start(ranks = {}, matchHistory = [], stage = campaignStages[0]) {
+  start(ranks = {}, matchHistory = [], stage = campaignStages[0], hasSecondPlot = false) {
     this.enemyDirector = new EnemyDirector(stage, matchHistory);
     this.ranks = { ...ranks };
     this.mode = "playing";
     this.elapsed = 0;
     this.bread = 4;
+    this.farmerLimit = hasSecondPlot ? Constants.FARM.plots.length : 1;
     this.nextSummon = 0;
     this.nextWizard = 0;
     this.nextKira = 0;
+    this.nextJames = 0;
     this.knightsRecruited = 0;
-    this.recruits = { knight: 0, wizard: 0, kira: 0 };
+    this.recruits = { knight: 0, wizard: 0, kira: 0, james: 0 };
     this.goblinsSpawned = 0;
     this.archersSpawned = 0;
     this.minotaursSpawned = 0;
@@ -66,7 +70,7 @@ class Battle {
     let spawnIndex = 0;
     if (kind === "knight") spawnIndex = this.knightsRecruited++;
     else if (kind === "wizard") spawnIndex = this.knightsRecruited++;
-    else if (kind === "kira") spawnIndex = this.knightsRecruited++;
+    else if (kind === "kira" || kind === "james") spawnIndex = this.knightsRecruited++;
     else if (kind === "minotaur") spawnIndex = this.minotaursSpawned++;
     else if (kind === "goblin") spawnIndex = this.goblinsSpawned++;
     else if (kind === "archer_goblin") spawnIndex = this.archersSpawned++;
@@ -84,6 +88,9 @@ class Battle {
         break;
       case "kira":
         unit = new Kira(depth, this.ranks?.kira);
+        break;
+      case "james":
+        unit = new James(depth, this.ranks?.james);
         break;
       case "goblin":
         unit = new Goblin(depth);
@@ -103,23 +110,31 @@ class Battle {
     return unit;
   }
 
-  get farm() {
-    return this.units.find(unit => unit.kind === "farmer" && unit.hp > 0) ?? null;
+  get farmersByPlot() {
+    const farmers = Array(this.farmerLimit).fill(null);
+    for (const unit of this.units) {
+      if (unit.kind === "farmer" && unit.hp > 0) farmers[unit.plotIndex] = unit;
+    }
+    return farmers;
   }
 
   get availableTroopBread() {
-    return Math.max(0, this.bread - Constants.FARM.cost);
+    // An active farmer can replenish the stock without keeping a recruitment reserve.
+    const reserve = this.farmersByPlot.some(Boolean) ? 0 : Constants.FARM.cost;
+    return Math.max(0, this.bread - reserve);
   }
 
-  get canRecruitFarmer() {
-    return this.mode === "playing" && !this.farm && this.bread >= Constants.FARM.cost;
+  get openFarmPlot() {
+    if (this.mode !== "playing" || this.bread < Constants.FARM.cost) return -1;
+    return this.farmersByPlot.indexOf(null);
   }
 
   recruit(kind = "knight") {
     if (kind === "farmer") {
-      if (!this.canRecruitFarmer) return false;
+      const plotIndex = this.openFarmPlot;
+      if (plotIndex === -1) return false;
       this.bread -= Constants.FARM.cost;
-      this.units.push(new Farm(this.ranks?.farm));
+      this.units.push(new Farm(this.ranks?.farm, plotIndex));
       return true;
     }
 
@@ -135,6 +150,11 @@ class Battle {
         cost = Constants.KIRA_COST;
         nextKey = "nextKira";
         cooldown = Constants.KIRA_COOLDOWN;
+        break;
+      case "james":
+        cost = Constants.JAMES_COST;
+        nextKey = "nextJames";
+        cooldown = Constants.JAMES_COOLDOWN;
         break;
       default:
         cost = Constants.KNIGHT_COST;
@@ -235,7 +255,7 @@ class Battle {
 
     // Update units
     for (const unit of this.units) {
-      if (unit.hp > 0) unit.update(delta, this);
+      if (unit.hp > 0 && !(unit.stunnedUntil > this.elapsed)) unit.update(delta, this);
     }
 
     for (const [target, state] of this.knightAttackQueues) {
