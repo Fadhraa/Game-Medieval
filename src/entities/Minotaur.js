@@ -5,7 +5,7 @@ class Minotaur extends Unit {
     super({
       kind: "minotaur",
       side: -1,
-      start: 501,
+      start: Constants.BASES.enemy.spawnX,
       depth,
       hp: 124,
       damage: 20,

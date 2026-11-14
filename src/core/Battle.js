@@ -4,22 +4,22 @@ class Battle {
   constructor(mode = "ready") {
     this.mode = mode;
     this.elapsed = 0;
-    this.nextBread = Constants.BREAD_INTERVAL;
-    this.nextGoblin = this.randomGoblinDelay();
-    this.nextMinotaur = this.randomMinotaurDelay();
 
     this.bread = 4;
     this.nextSummon = 0;
     this.nextWizard = 0;
     this.nextKira = 0;
     this.knightsRecruited = 0;
+    this.recruits = { knight: 0, wizard: 0, kira: 0 };
     this.goblinsSpawned = 0;
+    this.archersSpawned = 0;
     this.minotaursSpawned = 0;
 
     this.heroHp = Constants.BASES.hero.hp;
     this.enemyHp = Constants.BASES.enemy.hp;
 
     this.units = [];
+    this.kills = { goblin: 0, minotaur: 0, archer_goblin: 0 };
     this.projectiles = [];
     this.bursts = [];
     this.particles = [];
@@ -28,30 +28,24 @@ class Battle {
     this.knightAttackQueues = new Map();
   }
 
-  randomGoblinDelay() {
-    return 10000 + Math.random() * 3.4;
-  }
-
-  randomMinotaurDelay() {
-    return 7 + Math.random() * 2;
-  }
-
-  start() {
+  start(ranks = {}, matchHistory = [], stage = campaignStages[0]) {
+    this.enemyDirector = new EnemyDirector(stage, matchHistory);
+    this.ranks = { ...ranks };
     this.mode = "playing";
     this.elapsed = 0;
-    this.nextBread = Constants.BREAD_INTERVAL;
-    this.nextGoblin = this.randomGoblinDelay();
-    this.nextMinotaur = this.randomMinotaurDelay();
     this.bread = 4;
     this.nextSummon = 0;
     this.nextWizard = 0;
     this.nextKira = 0;
     this.knightsRecruited = 0;
+    this.recruits = { knight: 0, wizard: 0, kira: 0 };
     this.goblinsSpawned = 0;
+    this.archersSpawned = 0;
     this.minotaursSpawned = 0;
     this.heroHp = Constants.BASES.hero.hp;
     this.enemyHp = Constants.BASES.enemy.hp;
     this.units = [];
+    this.kills = { goblin: 0, minotaur: 0, archer_goblin: 0 };
     this.projectiles = [];
     this.bursts = [];
     this.particles = [];
@@ -75,6 +69,7 @@ class Battle {
     else if (kind === "kira") spawnIndex = this.knightsRecruited++;
     else if (kind === "minotaur") spawnIndex = this.minotaursSpawned++;
     else if (kind === "goblin") spawnIndex = this.goblinsSpawned++;
+    else if (kind === "archer_goblin") spawnIndex = this.archersSpawned++;
 
     const depth =
       Constants.TROOP_DEPTHS[spawnIndex % Constants.TROOP_DEPTHS.length];
@@ -82,16 +77,19 @@ class Battle {
 
     switch (kind) {
       case "knight":
-        unit = new Knight(depth);
+        unit = new Knight(depth, this.ranks?.knight);
         break;
       case "wizard":
-        unit = new Wizard(depth);
+        unit = new Wizard(depth, this.ranks?.wizard);
         break;
       case "kira":
-        unit = new Kira(depth);
+        unit = new Kira(depth, this.ranks?.kira);
         break;
       case "goblin":
         unit = new Goblin(depth);
+        break;
+      case "archer_goblin":
+        unit = new ArcherGoblin(depth);
         break;
       case "minotaur":
         unit = new Minotaur(depth);
@@ -105,7 +103,26 @@ class Battle {
     return unit;
   }
 
+  get farm() {
+    return this.units.find(unit => unit.kind === "farmer" && unit.hp > 0) ?? null;
+  }
+
+  get availableTroopBread() {
+    return Math.max(0, this.bread - Constants.FARM.cost);
+  }
+
+  get canRecruitFarmer() {
+    return this.mode === "playing" && !this.farm && this.bread >= Constants.FARM.cost;
+  }
+
   recruit(kind = "knight") {
+    if (kind === "farmer") {
+      if (!this.canRecruitFarmer) return false;
+      this.bread -= Constants.FARM.cost;
+      this.units.push(new Farm(this.ranks?.farm));
+      return true;
+    }
+
     let cost, nextKey, cooldown;
 
     switch (kind) {
@@ -128,7 +145,7 @@ class Battle {
 
     if (
       this.mode !== "playing" ||
-      this.bread < cost ||
+      this.availableTroopBread < cost ||
       this.elapsed < this[nextKey]
     ) {
       return false;
@@ -136,7 +153,8 @@ class Battle {
 
     this.bread -= cost;
     this[nextKey] = this.elapsed + cooldown;
-    this.spawnUnit(kind);
+    const unit = this.spawnUnit(kind);
+    if (unit) this.recruits[unit.kind]++;
     return true;
   }
 
@@ -209,23 +227,7 @@ class Battle {
 
     this.elapsed += delta;
 
-    // Bread generation
-    while (this.elapsed + 1e-8 >= this.nextBread) {
-      this.bread++;
-      this.nextBread += Constants.BREAD_INTERVAL;
-    }
-
-    // Auto-spawning enemy goblin
-    if (this.elapsed >= this.nextGoblin) {
-      this.spawnUnit("goblin");
-      this.nextGoblin = this.elapsed + this.randomGoblinDelay();
-    }
-
-    // Auto-spawning enemy minotaur
-    if (this.elapsed >= this.nextMinotaur) {
-      this.spawnUnit("minotaur");
-      this.nextMinotaur = this.elapsed + this.randomMinotaurDelay();
-    }
+    this.enemyDirector.update(this);
 
     for (const state of this.knightAttackQueues.values()) {
       state.occupiedUntil = state.occupiedUntil.filter(time => time > this.elapsed + 1e-8);
@@ -233,7 +235,7 @@ class Battle {
 
     // Update units
     for (const unit of this.units) {
-      unit.update(delta, this);
+      if (unit.hp > 0) unit.update(delta, this);
     }
 
     for (const [target, state] of this.knightAttackQueues) {
@@ -272,7 +274,11 @@ class Battle {
     }
 
     // Garbage collection of dead/inactive entities
-    this.units = this.units.filter((u) => u.active && u.hp > 0);
+    this.units = this.units.filter((unit) => {
+      if (unit.active && unit.hp > 0) return true;
+      if (unit.hp <= 0 && Object.hasOwn(this.kills, unit.kind)) this.kills[unit.kind]++;
+      return false;
+    });
     this.projectiles = this.projectiles.filter((p) => p.active);
     this.bursts = this.bursts.filter((b) => b.active);
     this.particles = this.particles.filter((p) => p.active);

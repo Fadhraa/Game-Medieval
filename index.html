@@ -9,12 +9,16 @@
 <link rel="stylesheet" href="style.css">
 <!-- Core Systems -->
 <script src="src/core/Constants.js" defer></script>
+<script src="src/core/Campaign.js" defer></script>
+<script src="src/core/Progress.js" defer></script>
+<script src="src/core/EnemyDirector.js" defer></script>
 <script src="src/core/AudioManager.js" defer></script>
 
 <!-- OOP Entity Hierarchy -->
 <script src="src/entities/Entity.js" defer></script>
 <script src="src/entities/Particle.js" defer></script>
 <script src="src/entities/Projectile.js" defer></script>
+<script src="src/entities/GoblinBolt.js" defer></script>
 <script src="src/entities/KiraProjectiles.js" defer></script>
 <script src="src/entities/Unit.js" defer></script>
 <script src="src/entities/Healer.js" defer></script>
@@ -22,7 +26,9 @@
 <script src="src/entities/Wizard.js" defer></script>
 <script src="src/entities/Kira.js" defer></script>
 <script src="src/entities/Goblin.js" defer></script>
+<script src="src/entities/ArcherGoblin.js" defer></script>
 <script src="src/entities/Minotaur.js" defer></script>
+<script src="src/entities/Farm.js" defer></script>
 
 <!-- Battle Engine & Renderer -->
 <script src="src/core/Battle.js" defer></script>
@@ -33,13 +39,81 @@
 <header class="top">
   <div class="top-inner">
     <div class="brand"><canvas class="brand-icon" data-art="crest" width="24" height="24" aria-hidden="true"></canvas> Roti &amp; Benteng</div>
-    <button class="secondary" id="pause" type="button" disabled>Jeda</button>
+    <div class="top-actions">
+      <span class="coin-balance">Koin <strong id="coinBalance">0</strong></span>
+      <button class="secondary" id="pause" type="button" hidden disabled>Jeda</button>
+    </div>
   </div>
 </header>
 <main>
+  <section id="lobbyScreen" class="courtyard" aria-labelledby="lobbyTitle">
+    <canvas id="courtyardArt" width="576" height="247" aria-hidden="true"></canvas>
+    <div class="courtyard-copy">
+      <h1 id="lobbyTitle" tabindex="-1">Roti <i>&amp;</i> Benteng</h1>
+      <p>Panen gandum, rekrut pasukan, dan rebut markas Goblin.</p>
+      <div class="lobby-actions">
+        <button class="gold-button" id="enterBattle" type="button">Pilih Level</button>
+        <button class="secondary" id="enterBarracks" type="button">Buka Barak</button>
+        <button class="secondary" id="enterGranary" type="button">Buka Lumbung</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="lobbyProgress" class="lobby-progress">
+    <p id="resetStatus" class="menu-status" role="status"></p>
+    <button class="secondary" id="resetProgress" type="button">Reset karakter, Lumbung, dan koin</button>
+  </div>
+
+  <dialog id="resetDialog" class="menu-panel game-dialog" aria-labelledby="resetTitle" aria-describedby="resetSummary">
+    <h2 id="resetTitle">Reset karakter, Lumbung, dan koin?</h2>
+    <p id="resetSummary">Ksatria, Wizard, Kira, dan Lumbung kembali ke level 1. Saldo koin menjadi 0.</p>
+    <div class="lobby-actions">
+      <button class="secondary" id="cancelReset" type="button" autofocus>Batal</button>
+      <button class="danger-button" id="confirmReset" type="button">Reset progres</button>
+    </div>
+  </dialog>
+
+  <section id="campaignScreen" class="menu-panel" aria-labelledby="campaignTitle" hidden>
+    <div class="menu-heading">
+      <div>
+        <h1 id="campaignTitle" tabindex="-1">Pilih Level</h1>
+        <p>Rebut markas Goblin untuk membuka level berikutnya.</p>
+      </div>
+      <button class="secondary" id="leaveCampaign" type="button">Kembali ke lobi</button>
+    </div>
+    <div id="chapterList"></div>
+  </section>
+
+  <section id="barracksScreen" class="menu-panel" aria-labelledby="barracksTitle" hidden>
+    <div class="menu-heading">
+      <div>
+        <h1 id="barracksTitle" tabindex="-1">Barak</h1>
+        <p>Gunakan koin kemenangan untuk memperkuat pasukan di pertempuran berikutnya.</p>
+      </div>
+      <button class="secondary" id="leaveBarracks" type="button">Kembali ke lobi</button>
+    </div>
+    <div id="upgradeCards" class="upgrade-grid"></div>
+    <p id="upgradeStatus" class="menu-status" role="status"></p>
+  </section>
+
+  <section id="granaryScreen" class="menu-panel" aria-labelledby="granaryTitle" hidden>
+    <div class="menu-heading">
+      <div>
+        <h1 id="granaryTitle" tabindex="-1">Lumbung</h1>
+        <p>Tingkatkan jumlah roti yang dihasilkan setiap kali petani menyetor gandum.</p>
+      </div>
+      <button class="secondary" id="leaveGranary" type="button">Kembali ke lobi</button>
+    </div>
+    <div id="granaryCards" class="upgrade-grid"></div>
+    <p id="granaryStatus" class="menu-status" role="status"></p>
+  </section>
+
+  <p id="saveStatus" class="menu-status" role="status" hidden>Browser tidak dapat menyimpan progres. Progres level, koin, dan upgrade tersedia selama halaman ini terbuka.</p>
+
+  <div id="battleScreen" hidden>
   <section class="intro" aria-labelledby="title">
-    <h1 id="title">Roti <i>&amp;</i> Benteng</h1>
-    <p>Panggil ksatria dan wizard. Hancurkan markas goblin.</p>
+    <h1 id="title" tabindex="-1">Roti <i>&amp;</i> Benteng</h1>
+    <p id="battleBriefing"></p>
   </section>
   <section class="battle" aria-label="Medan pertempuran">
     <div class="battle-hud">
@@ -60,15 +134,21 @@
       </div>
     </div>
     <div class="field" tabindex="-1" id="field">
-      <canvas id="scene" width="576" height="247" role="img" aria-label="Benteng kerajaan di kiri dan markas goblin di kanan, dihubungkan oleh satu jalur pertempuran"></canvas>
+      <canvas id="scene" width="576" height="247" role="img" aria-label="Benteng kerajaan di kiri dan markas goblin di kanan. Geser untuk melihat seluruh medan pertempuran"></canvas>
       <div class="overlay" id="overlay">
         <div class="mission">
           <h2 id="missionTitle">Rebut Markas Goblin</h2>
-          <p id="missionText">Gunakan roti untuk memanggil ksatria dan wizard.</p>
+          <p id="missionText">Panggil petani dengan 1 roti. Setiap setoran gandum di benteng menghasilkan 4 roti.</p>
           <button type="button" id="play">Mulai Pertempuran <span aria-hidden="true">▸</span></button>
           <button type="button" id="restart" hidden>Ulang dari awal</button>
+          <button class="secondary" type="button" id="leaveBattle">Kembali ke pilihan level</button>
         </div>
       </div>
+    </div>
+    <div class="camera-controls" role="group" aria-label="Kamera medan pertempuran">
+      <button class="secondary" type="button" id="cameraHome">Benteng</button>
+      <input id="cameraPosition" type="range" min="0" value="0" aria-label="Geser kamera">
+      <button class="secondary" type="button" id="cameraEnemy">Markas musuh</button>
     </div>
     <div class="battle-foot">
       <span><b></b><span id="status" role="status">Siap bertempur</span></span>
@@ -83,27 +163,44 @@
         <div class="resource-value"><strong id="breadCount">4</strong><span>roti</span></div>
       </div>
       <div class="production">
-        <div id="breadTime">+1 tiap 3 dtk</div>
-        <div class="bake-track" aria-hidden="true"><div id="bakeFill"></div></div>
+        <div id="farmStatus">Panggil petani untuk panen</div>
       </div>
     </div>
     <div class="card recruit">
+      <div class="portrait farmer"><canvas data-art="farmer" width="24" height="24" aria-hidden="true"></canvas></div>
+      <div class="unit-info"><strong>Petani Gandum</strong><span id="farmerCount">0/1 petani</span><span id="farmStats">40 HP · +4 roti per setoran</span></div>
+      <button id="summonFarmer" type="button" aria-label="Panggil petani, 1 roti" disabled><span id="farmerLabel">Panggil</span><span class="price">1 roti</span></button>
+    </div>
+    <div class="card recruit">
       <div class="portrait knight"><canvas data-art="knight" width="24" height="24" aria-hidden="true"></canvas></div>
-      <div class="unit-info"><strong>Ksatria Pedang</strong><span>Serangan jarak dekat</span></div>
+      <div class="unit-info"><strong>Ksatria Pedang</strong><span id="knightStats">Serangan jarak dekat</span></div>
       <button id="summon" type="button" disabled><span id="summonLabel">Panggil</span><span class="price">2 roti</span></button>
     </div>
     <div class="card recruit">
       <div class="portrait wizard"><canvas data-art="wizard" width="24" height="24" aria-hidden="true"></canvas></div>
-      <div class="unit-info"><strong>Wizard Api</strong><span>Fireball · 75 hit + 5 sebaran</span></div>
+      <div class="unit-info"><strong>Wizard Api</strong><span id="wizardStats">Fireball · 35 hit + 5 sebaran</span></div>
       <button id="summonWizard" type="button" disabled><span id="wizardLabel">Panggil</span><span class="price">8 roti</span></button>
     </div>
     <div class="card recruit">
       <div class="portrait kira"><canvas data-art="kira" width="24" height="24" aria-hidden="true"></canvas></div>
-      <div class="unit-info"><strong>Kira</strong><span>Healer · Lightning · 20 hit</span></div>
+      <div class="unit-info"><strong>Kira</strong><span id="kiraStats">Healer · Lightning · 20 hit</span></div>
       <button id="summonKira" type="button" disabled><span id="kiraLabel">Panggil</span><span class="price">6 roti</span></button>
     </div>
   </section>
   <p class="hint"><kbd>Spasi</kbd> Ksatria <span aria-hidden="true">·</span> <kbd>W</kbd> Wizard <span aria-hidden="true">·</span> <kbd>P</kbd> Jeda</p>
+  <dialog id="resultDialog" class="menu-panel game-dialog" aria-labelledby="resultTitle">
+    <h2 id="resultTitle">Hasil Pertempuran</h2>
+    <p id="resultProgress"></p>
+    <dl id="resultDetails" class="reward-list"></dl>
+    <div class="lobby-actions">
+      <button class="gold-button" id="resultNext" type="button" hidden>Level berikutnya</button>
+      <button class="gold-button" id="resultRetry" type="button" hidden>Coba lagi</button>
+      <button class="secondary" id="resultLevels" type="button">Pilih level</button>
+      <button class="secondary" id="resultLobby" type="button">Kembali ke lobi</button>
+      <button class="secondary" id="resultBarracks" type="button">Buka Barak</button>
+    </div>
+  </dialog>
+  </div>
 </main>
 </body>
 </html>

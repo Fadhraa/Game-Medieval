@@ -106,6 +106,9 @@ class AudioManager {
     if (!sfx) return;
     this.loadSample("knight", sfx.knight);
     this.loadSample("fireball", sfx.fireball);
+    this.loadSample("lightningLaunch", sfx.lightningLaunch);
+    this.loadSample("lightning", sfx.lightning);
+    this.loadSample("heal", sfx.heal);
   }
 
   makeHit(kind) {
@@ -202,8 +205,10 @@ class AudioManager {
     const now = this.context.currentTime;
     if (now - (this.lastPlayedAt[kind] ?? -Infinity) < 0.06) return;
 
+    const uploadedSample = this.soundSamples[kind];
+    if (!uploadedSample && kind === "lightningLaunch") return;
+
     const source = this.context.createBufferSource();
-    const uploadedSample = this.soundSamples[kind] ?? null;
     source.buffer =
       uploadedSample ?? (this.buffers[kind] ??= this.makeHit(kind));
 

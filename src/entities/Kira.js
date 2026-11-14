@@ -3,22 +3,24 @@
 class Kira extends Healer {
   static spriteGeometry = { frameWidth: 48, frameHeight: 48, originX: 24, feetOrigin: 42 };
 
-  constructor(depth = 0) {
+  constructor(depth = 0, rank = 0) {
+    const { hp, damage, healPercent } = Progress.stats("kira", rank);
     super({
       kind: "kira",
       side: 1,
       cost: Constants.KIRA_COST,
       start: 83,
       depth,
-      hp: 55,
-      damage: 20,
+      hp,
+      damage,
       speed: 22,
       attackEvery: 2.25,
       reach: 155,
       healSpeed: 2.25,
-      healPower: 0.05
+      healPower: healPercent / 100
     });
     this.castRow = 3;
+    this.lightningBolt = null;
   }
 
   getRenderConfig() {
@@ -41,12 +43,32 @@ class Kira extends Healer {
   performAttack(target, base, battle) {
     this.castRow = 3;
     const feet = Constants.GROUND_Y + (this.depth ?? 0);
-    battle.spawnProjectile(new LightningBolt(this.x + 15, feet - 17));
+    this.lightningBolt = new LightningBolt(this.x + 15, feet - 17, this.damage);
+    battle.spawnProjectile(this.lightningBolt);
+    window.audioManager?.playHit("lightningLaunch");
+  }
+
+  get castDuration() {
+    return this.castRow === 2 ? 0.54 : 0.48;
+  }
+
+  update(delta, battle) {
+    // Keep this cast exclusive until its animation and any launched bolt finish.
+    if (this.hp > 0 && (this.swing < this.castDuration || this.lightningBolt?.active)) {
+      this.swing += delta;
+      this.flash = Math.max(0, this.flash - delta);
+      this.cooldown = Math.max(0, this.cooldown - delta);
+      this.healCooldown = Math.max(0, this.healCooldown - delta);
+      return;
+    }
+
+    this.lightningBolt = null;
+    super.update(delta, battle);
   }
 
   getPose(time) {
     const frameCount = 6;
-    const castDuration = this.castRow === 2 ? 0.54 : 0.48;
+    const castDuration = this.castDuration;
 
     if (this.swing < castDuration) {
       return [this.castRow, Math.floor(this.swing * frameCount / castDuration)];

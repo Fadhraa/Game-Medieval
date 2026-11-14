@@ -1,15 +1,14 @@
 "use strict";
 
 class Knight extends Unit {
-  constructor(depth = 0) {
+  constructor(depth = 0, rank = 0) {
     super({
       kind: "knight",
       side: 1,
       cost: Constants.KNIGHT_COST,
       start: 83,
       depth,
-      hp: 1005,
-      damage: 1,
+      ...Progress.stats("knight", rank),
       speed: 24,
       attackEvery: 1,
       reach: 17,

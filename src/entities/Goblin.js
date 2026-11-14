@@ -5,7 +5,7 @@ class Goblin extends Unit {
     super({
       kind: "goblin",
       side: -1,
-      start: 501,
+      start: Constants.BASES.enemy.spawnX,
       depth,
       hp: 50,
       damage: 15,

@@ -1,19 +1,21 @@
 "use strict";
 
 class Wizard extends Unit {
-  constructor(depth = 0) {
+  constructor(depth = 0, rank = 0) {
+    const { hp, damage, splashDamage } = Progress.stats("wizard", rank);
     super({
       kind: "wizard",
       side: 1,
       cost: Constants.WIZARD_COST,
       start: 83,
       depth,
-      hp: 45,
-      damage: 35,
+      hp,
+      damage,
       speed: 20,
       attackEvery: 2.5,
-      reach: 150
+      reach: 120
     });
+    this.splashDamage = splashDamage;
   }
 
   getRenderConfig() {
@@ -35,7 +37,7 @@ class Wizard extends Unit {
 
   performAttack(target, base, battle) {
     // Spawns fireball projectile instead of direct melee strike
-    battle.spawnProjectile(new Fireball(this.x + 10, 190 + (this.depth ?? 0)));
+    battle.spawnProjectile(new Fireball(this.x + 10, 190 + (this.depth ?? 0), this.damage, this.splashDamage));
   }
 
   drawProcedural(ctx, feet) {

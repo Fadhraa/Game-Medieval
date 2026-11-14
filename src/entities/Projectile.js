@@ -15,9 +15,9 @@ class Projectile extends Entity {
 }
 
 class Fireball extends Projectile {
-  constructor(x, y) {
-    super(x, y, Constants.FIREBALL_SPEED, 75, 1, 3);
-    this.splashDamage = Constants.FIREBALL_SPLASH;
+  constructor(x, y, damage = Progress.stats("wizard").damage, splashDamage = Constants.FIREBALL_SPLASH) {
+    super(x, y, Constants.FIREBALL_SPEED, damage, 1, 3);
+    this.splashDamage = splashDamage;
     this.splashRadius = Constants.FIREBALL_RADIUS;
   }
 
@@ -53,7 +53,7 @@ class Fireball extends Projectile {
     if (target) {
       target.takeDamage(this.damage, battle, true);
     } else {
-      battle.damageBase(-1, this.damage);
+      battle.damageBase(this.side, this.damage);
     }
 
     // Splash damage

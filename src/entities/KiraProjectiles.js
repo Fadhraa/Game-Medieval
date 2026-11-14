@@ -1,8 +1,8 @@
 "use strict";
 
 class LightningBolt extends Projectile {
-  constructor(x, y) {
-    super(x, y, 220, 20, 1, 3);
+  constructor(x, y, damage = Progress.stats("kira").damage) {
+    super(x, y, 220, damage, 1, 3);
     this.frameWidth = 443.5;
     this.frameHeight = 443.5;
   }
@@ -39,7 +39,7 @@ class LightningBolt extends Projectile {
     if (target) {
       target.takeDamage(this.damage, battle, false);
     } else {
-      battle.damageBase(-1, this.damage);
+      battle.damageBase(this.side, this.damage);
     }
 
     // Spawn electric lightning burst (single target, no splash)

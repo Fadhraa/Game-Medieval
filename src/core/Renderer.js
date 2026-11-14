@@ -13,13 +13,13 @@ class Renderer {
 
     // Cache procedural landscape background
     this.backdrop = document.createElement("canvas");
-    this.backdrop.width = this.width;
+    this.backdrop.width = Constants.WORLD_WIDTH;
     this.backdrop.height = this.height;
     this.buildBackground(this.backdrop.getContext("2d"));
 
     this.previousMode = null;
     this.messages = {
-      ready: ["Rebut Markas Goblin", "Gunakan roti untuk memanggil ksatria dan wizard.", "Mulai Pertempuran", "Siap bertempur"],
+      ready: ["Rebut Markas Goblin", "Panggil petani dengan 1 roti. Setorkan gandum di benteng untuk mendapatkan roti.", "Mulai Pertempuran", "Siap bertempur"],
       paused: ["Pertempuran Dijeda", "Produksi roti dan pergerakan pasukan ikut berhenti.", "Lanjutkan", "Dijeda"],
       won: ["Kerajaan Menang!", "Pasukanmu berhasil menghancurkan markas goblin.", "Main Lagi", "Menang"],
       lost: ["Benteng Kerajaan Runtuh", "Goblin berhasil menghancurkan bentengmu.", "Coba Lagi", "Kalah"],
@@ -84,13 +84,19 @@ class Renderer {
 
   buildBackground(ctx) {
     const rand = this.randomFrom(1629);
+    ctx.save();
+    ctx.scale(Constants.WORLD_WIDTH / this.width, 1);
     const sky = ["#acc9bc","#b5cebc","#bdd2bd","#c7d5bc","#d2d9be","#dfdabd","#eadab9","#f0dbb9","#f5dfb8"];
     sky.forEach((color, i) => this.rect(ctx, color, 0, i * 19, this.width, 19));
 
+    ctx.save();
+    ctx.translate(413, 0);
+    ctx.scale(this.width / Constants.WORLD_WIDTH, 1);
     for (let y = -24; y <= 24; y += 2) {
       const span = Math.floor(Math.sqrt(625 - y * y));
-      this.rect(ctx, "#ffeac0", 413 - span, 62 + y, span * 2, 2);
+      this.rect(ctx, "#ffeac0", -span, 62 + y, span * 2, 2);
     }
+    ctx.restore();
 
     const clouds = [[42,35,71],[172,60,89],[287,29,65],[410,91,105],[498,45,55],[90,80,45],[332,73,46]];
     for (const [x, y, w] of clouds) {
@@ -129,27 +135,31 @@ class Renderer {
       this.broadleaf(ctx, x, y, size, autumn ? "#6b5a39" : "#3e604a", autumn ? "#8c7141" : "#507652", autumn ? "#a28249" : "#729064");
     }
 
-    this.rect(ctx, "#668254", 0, 185, this.width, 24);
-    for (let i = 0; i < 650; i++) {
-      const x = rand() * this.width;
+    ctx.restore();
+
+    const worldWidth = Constants.WORLD_WIDTH;
+    const density = worldWidth / this.width;
+    this.rect(ctx, "#668254", 0, 185, worldWidth, 24);
+    for (let i = 0; i < 650 * density; i++) {
+      const x = rand() * worldWidth;
       const y = 182 + rand() * 25;
       const tones = ["#4f714e", "#75925b", "#8b995e", "#5e7d4f"];
       this.rect(ctx, tones[i % 4], x, y, 1 + Math.floor(rand() * 5), 1);
       if (i % 9 === 0) this.rect(ctx, "#a5a165", x + 1, y - 1, 1, 1);
     }
 
-    for (let x = 0; x < this.width; x += 4) {
+    for (let x = 0; x < worldWidth; x += 4) {
       const y = Math.floor(200 + Math.sin(x / 18) * 1.5 + rand() * 3);
       this.rect(ctx, "#938052", x, y, 4, 15);
       this.rect(ctx, "#c5aa72", x, y + 2, 4, 11);
       this.rect(ctx, "#a58b56", x, y + 11, 4, 4);
     }
 
-    this.rect(ctx, "#587747", 0, 216, this.width, 31);
-    this.rect(ctx, "#779458", 0, 215, this.width, 3);
-    this.rect(ctx, "#476b46", 0, 235, this.width, 12);
-    for (let i = 0; i < 940; i++) {
-      const x = rand() * this.width;
+    this.rect(ctx, "#587747", 0, 216, worldWidth, 31);
+    this.rect(ctx, "#779458", 0, 215, worldWidth, 3);
+    this.rect(ctx, "#476b46", 0, 235, worldWidth, 12);
+    for (let i = 0; i < 940 * density; i++) {
+      const x = rand() * worldWidth;
       const y = 203 + rand() * 44;
       const colors = y < 215 ? ["#b09762","#d1b683","#987e55"] : ["#547249","#668652","#7e965b","#3e6344"];
       this.rect(ctx, colors[i % colors.length], x, y, 1 + Math.floor(rand() * 4), 1);
@@ -267,9 +277,27 @@ class Renderer {
     }
   }
 
-  render(battle, time) {
+  drawFarm(ctx, farm) {
+    const plotX = Constants.FARM.plotX;
+    const plot = this.sprites.farmPlot;
+    if (plot?.complete && plot.naturalWidth) {
+      ctx.drawImage(plot, plotX - 32, this.ground - 8);
+    }
+
+    // The farmer's harvest animation already shows the wheat being cut.
+    const crop = farm?.crop ? this.sprites[farm.crop] : null;
+    if (crop?.complete && crop.naturalWidth) {
+      for (const offset of [-18, 0, 18]) {
+        ctx.drawImage(crop, plotX + offset - crop.naturalWidth / 2, this.ground - crop.naturalHeight + 3);
+      }
+    }
+  }
+
+  render(battle, time, cameraX = 0) {
     const ctx = this.ctx;
 
+    ctx.save();
+    ctx.translate(-Math.round(cameraX), 0);
     ctx.drawImage(this.backdrop, 0, 0);
 
     for (let i = 0; i < 4; i++) {
@@ -281,7 +309,11 @@ class Renderer {
     }
 
     this.drawCastle(ctx, time);
+    ctx.save();
+    ctx.translate(Constants.WORLD_WIDTH - this.width, 0);
     this.drawCamp(ctx, time);
+    ctx.restore();
+    this.drawFarm(ctx, battle.farm);
 
     // Far half of each healing rune goes behind the units.
     const healSheet = this.sprites.healingAura;
@@ -297,7 +329,7 @@ class Renderer {
 
     if (battle.mode === "ready") {
       units[0].x = 143;
-      units[1].x = 434;
+      units[1].x = Constants.BASES.enemy.x - 42;
     }
 
     for (const unit of units) {
@@ -311,12 +343,15 @@ class Renderer {
       aura.draw(ctx, healSheet, "front");
     }
 
-    // Projectiles — draw fireball and lightning separately
+    // Use the atlas associated with each projectile type.
     const fireballSheet = this.sprites.fireball;
     const lightningSheet = this.sprites.lightning;
+    const goblinBoltSheet = this.sprites.goblinBolt;
     for (const projectile of battle.projectiles) {
       if (projectile instanceof LightningBolt) {
         projectile.draw(ctx, time, lightningSheet);
+      } else if (projectile instanceof GoblinBolt) {
+        projectile.draw(ctx, time, goblinBoltSheet);
       } else {
         projectile.draw(ctx, time, fireballSheet);
       }
@@ -336,6 +371,7 @@ class Renderer {
     for (const particle of battle.particles) {
       particle.draw(ctx);
     }
+    ctx.restore();
   }
 
   syncHud(battle, ui) {
@@ -349,7 +385,7 @@ class Renderer {
       ui.pause.disabled = !active && !paused;
       textValue(ui.pause, paused ? "Lanjut" : "Jeda");
       ui.pause.setAttribute("aria-label", paused ? "Lanjutkan pertempuran" : "Jeda pertempuran");
-      ui.overlay.hidden = active;
+      ui.overlay.hidden = !paused && battle.mode !== "ready";
       ui.restart.hidden = !paused;
 
       if (active) {
@@ -364,16 +400,17 @@ class Renderer {
         arrow.textContent = "▸";
         ui.play.append(arrow);
         textValue(ui.status, status);
-        if (this.previousMode) ui.play.focus({ preventScroll: true });
+        if (this.previousMode && !ui.overlay.hidden) ui.play.focus({ preventScroll: true });
       }
       this.previousMode = battle.mode;
     }
 
     const updateBase = (hp, max, label, bar) => {
-      textValue(label, hp + " / " + max);
-      if (bar.getAttribute("aria-valuenow") !== String(hp)) {
-        bar.firstElementChild.style.width = (100 * hp) / max + "%";
-        bar.setAttribute("aria-valuenow", hp);
+      const displayHp = Math.ceil(hp);
+      textValue(label, displayHp + " / " + max);
+      bar.firstElementChild.style.width = (100 * hp) / max + "%";
+      if (bar.getAttribute("aria-valuenow") !== String(displayHp)) {
+        bar.setAttribute("aria-valuenow", displayHp);
       }
     };
 
@@ -387,21 +424,17 @@ class Renderer {
     textValue(ui.clock, clock);
 
     textValue(ui.breadCount, String(battle.bread));
-    const remaining = Math.max(0, battle.nextBread - battle.elapsed);
-    textValue(
-      ui.breadTime,
-      battle.mode === "playing"
-        ? "+1 dalam " + Math.ceil(remaining) + " dtk"
-        : "+1 tiap 3 dtk"
-    );
-    ui.bakeFill.style.width = (1 - remaining / Constants.BREAD_INTERVAL) * 100 + "%";
+    textValue(ui.farmStatus, battle.farm?.status ?? "Panggil petani untuk panen");
+    textValue(ui.farmerLabel, battle.farm ? "Aktif" : "Panggil");
+    textValue(ui.farmerCount, battle.farm ? "1/1 petani" : "0/1 petani");
+    ui.summonFarmer.disabled = !battle.canRecruitFarmer;
 
     // Unit counts
     const knights = battle.units.filter((u) => u.kind === "knight").length;
     const wizards = battle.units.filter((u) => u.kind === "wizard").length;
     const kiras = battle.units.filter((u) => u.kind === "kira").length;
-    const minotaurs = battle.units.filter((u) => u.kind === "minotaur" || u.kind === "goblin").length;
-    textValue(ui.unitCount, `${knights} ksatria · ${wizards} wizard · ${kiras} kira · ${minotaurs} monster di medan`);
+    const monsters = battle.units.filter((unit) => unit.side === -1).length;
+    textValue(ui.unitCount, `${knights} ksatria · ${wizards} wizard · ${kiras} kira · ${monsters} monster di medan`);
 
     // Knight button
     const summonRemaining = Math.max(0, battle.nextSummon - battle.elapsed);
@@ -413,7 +446,7 @@ class Renderer {
     );
     ui.summon.disabled =
       battle.mode !== "playing" ||
-      battle.bread < Constants.KNIGHT_COST ||
+      battle.availableTroopBread < Constants.KNIGHT_COST ||
       summonRemaining > 0;
 
     // Wizard button
@@ -426,7 +459,7 @@ class Renderer {
     );
     ui.summonWizard.disabled =
       battle.mode !== "playing" ||
-      battle.bread < Constants.WIZARD_COST ||
+      battle.availableTroopBread < Constants.WIZARD_COST ||
       wizardRemaining > 0;
 
     // Kira button
@@ -440,7 +473,7 @@ class Renderer {
       );
       ui.summonKira.disabled =
         battle.mode !== "playing" ||
-        battle.bread < Constants.KIRA_COST ||
+        battle.availableTroopBread < Constants.KIRA_COST ||
         kiraRemaining > 0;
     }
   }
@@ -504,6 +537,9 @@ class Renderer {
     }
     if (kind === "minotaur") {
       return { frameWidth: 316, frameHeight: 311, originX: 148, feetOrigin: 298, portraitX: 18, portraitScale: 0.13 };
+    }
+    if (kind === "farmer") {
+      return { frameWidth: 48, frameHeight: 48, originX: 24, feetOrigin: 42, portraitX: 12, portraitScale: 0.62 };
     }
     if (kind === "kira") {
       return { ...Kira.spriteGeometry, portraitX: 12, portraitScale: 0.62 };
