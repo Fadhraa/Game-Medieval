@@ -20,6 +20,7 @@ class Unit extends Entity {
     this.swing = 1;
     this.flash = 0;
     this.stunnedUntil = 0;
+    this.slowedUntil = 0;
     this.engaged = false;
     this.attackTarget = null;
     this.hasAttackSlot = false;
@@ -66,21 +67,30 @@ class Unit extends Entity {
 
   performAttack(target, base, battle) {
     if (target) {
-      target.takeDamage(this.damage, battle, false);
+      target.takeDamage(this.damage, battle, { type: "physical" });
     } else {
       battle.damageBase(this.side, this.damage);
     }
     window.audioManager?.playHit(this.kind);
   }
 
-  takeDamage(amount, battle, isHeavy = false) {
-    this.hp -= amount;
+  takeDamage(amount, battle, { heavy = false } = {}) {
+    const previousHp = this.hp;
+    this.hp = Math.max(0, this.hp - amount);
+    battle.showCombatNumber(this, this.hp - previousHp);
     this.flash = 0.14;
-    battle.spawnImpact(this.x, isHeavy);
+    battle.spawnImpact(this.x, heavy);
     if (this.hp <= 0) {
-      this.hp = 0;
       this.active = false;
     }
+  }
+
+  receiveHealing(amount, battle) {
+    if (this.hp <= 0 || this.hp >= this.maxHp || amount <= 0) return 0;
+    const restored = Math.min(amount, this.maxHp - this.hp);
+    this.hp += restored;
+    battle.showCombatNumber(this, restored);
+    return restored;
   }
 
   update(delta, battle) {
@@ -112,7 +122,7 @@ class Unit extends Entity {
         this.swing = 0;
       }
     } else {
-      const travel = this.speed * delta;
+      const travel = this.speed * delta * (this.slowedUntil > battle.elapsed ? 0.65 : 1);
       this.moving = travel > 0;
       this.x += travel * this.side;
       this.walk += travel / this.speed;
@@ -174,7 +184,7 @@ class Unit extends Entity {
     }
 
     // Health Bar
-    if (this.hp < this.maxHp) {
+    if (cfg.barWidth > 0 && this.hp < this.maxHp) {
       const barY = feet - cfg.barYOffset;
       const barW = cfg.barWidth;
       ctx.fillStyle = "#30362b";

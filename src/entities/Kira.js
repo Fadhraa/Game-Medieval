@@ -35,6 +35,10 @@ class Kira extends Healer {
     };
   }
 
+  healAmount() {
+    return this.maxHp * this.healPower;
+  }
+
   performHeal(target, battle) {
     super.performHeal(target, battle);
     this.castRow = 2;

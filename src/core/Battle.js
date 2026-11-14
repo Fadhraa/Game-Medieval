@@ -21,12 +21,15 @@ class Battle {
     this.enemyHp = Constants.BASES.enemy.hp;
 
     this.units = [];
-    this.kills = { goblin: 0, minotaur: 0, archer_goblin: 0 };
+    this.kills = {};
+    this.boss = null;
     this.projectiles = [];
     this.bursts = [];
     this.particles = [];
     this.healingAuras = [];
     this.lightningBursts = [];
+    this.witcherCircles = [];
+    this.combatNumbers = [];
     this.knightAttackQueues = new Map();
   }
 
@@ -49,12 +52,17 @@ class Battle {
     this.heroHp = Constants.BASES.hero.hp;
     this.enemyHp = Constants.BASES.enemy.hp;
     this.units = [];
-    this.kills = { goblin: 0, minotaur: 0, archer_goblin: 0 };
+    this.kills = Object.fromEntries(Object.keys(Progress.killReward).map(kind => [kind, 0]));
+    this.bossKind = stage.boss;
+    this.boss = null;
+    this.arena = Campaign.find(chapter => chapter.stages.some(item => item.id === stage.id))?.arena;
     this.projectiles = [];
     this.bursts = [];
     this.particles = [];
     this.healingAuras = [];
     this.lightningBursts = [];
+    this.witcherCircles = [];
+    this.combatNumbers = [];
     this.knightAttackQueues.clear();
   }
 
@@ -66,7 +74,7 @@ class Battle {
     if (this.mode === "paused") this.mode = "playing";
   }
 
-  spawnUnit(kind) {
+  spawnUnit(kind, { x, empowered = false } = {}) {
     let spawnIndex = 0;
     if (kind === "knight") spawnIndex = this.knightsRecruited++;
     else if (kind === "wizard") spawnIndex = this.knightsRecruited++;
@@ -99,13 +107,17 @@ class Battle {
         unit = new ArcherGoblin(depth);
         break;
       case "minotaur":
-        unit = new Minotaur(depth);
+        unit = new Minotaur(depth, empowered);
+        break;
+      case "witcher":
+        unit = new Witcher(depth);
         break;
       default:
         console.warn(`Unknown unit kind: ${kind}`);
         return null;
     }
 
+    if (x !== undefined) unit.x = x;
     this.units.push(unit);
     return unit;
   }
@@ -116,6 +128,10 @@ class Battle {
       if (unit.kind === "farmer" && unit.hp > 0) farmers[unit.plotIndex] = unit;
     }
     return farmers;
+  }
+
+  get activeWitcher() {
+    return this.units.find(unit => unit.kind === "witcher" && unit.hp > 0);
   }
 
   get availableTroopBread() {
@@ -217,10 +233,25 @@ class Battle {
     if (attackerSide === 1) {
       this.enemyHp = Math.max(0, this.enemyHp - amount);
       this.spawnImpact(Constants.BASES.enemy.x, true);
+      this.checkBossArrival();
     } else {
       this.heroHp = Math.max(0, this.heroHp - amount);
       this.spawnImpact(Constants.BASES.hero.x, true);
     }
+  }
+
+  checkBossArrival() {
+    if (!this.bossKind || this.boss) return;
+    const threshold = this.bossKind === "commander" ? Commander.summonThreshold :
+      ArenaBoss.profiles[this.bossKind].threshold;
+    if (this.enemyHp <= Constants.BASES.enemy.hp * threshold + 1e-8) {
+      this.boss = this.bossKind === "commander" ? new Commander() : new ArenaBoss(this.bossKind);
+      this.units.push(this.boss);
+    }
+  }
+
+  showCombatNumber(unit, amount) {
+    if (amount !== 0) this.combatNumbers.push(new CombatNumber(unit, amount));
   }
 
   takeKnightAttackSlot(target, knight) {
@@ -247,6 +278,8 @@ class Battle {
 
     this.elapsed += delta;
 
+    this.checkBossArrival();
+    if (this.boss?.hp === 0) this.boss.actionAge += delta;
     this.enemyDirector.update(this);
 
     for (const state of this.knightAttackQueues.values()) {
@@ -292,6 +325,8 @@ class Battle {
     for (const lb of this.lightningBursts) {
       lb.update(delta);
     }
+    for (const circle of this.witcherCircles) circle.update(delta);
+    for (const number of this.combatNumbers) number.update(delta);
 
     // Garbage collection of dead/inactive entities
     this.units = this.units.filter((unit) => {
@@ -304,10 +339,14 @@ class Battle {
     this.particles = this.particles.filter((p) => p.active);
     this.healingAuras = this.healingAuras.filter((a) => a.active);
     this.lightningBursts = this.lightningBursts.filter((lb) => lb.active);
+    this.witcherCircles = this.witcherCircles.filter(circle => circle.active);
+    this.combatNumbers = this.combatNumbers.filter(number => number.active);
 
     // Win/Loss conditions
-    if (!this.enemyHp && !this.heroHp) this.mode = "draw";
-    else if (!this.enemyHp) this.mode = "won";
+    const objectivesCleared = !this.enemyHp &&
+      (!this.bossKind || this.boss?.hp === 0);
+    if (objectivesCleared && !this.heroHp) this.mode = "draw";
+    else if (objectivesCleared && (!this.bossKind || this.boss.defeatFinished)) this.mode = "won";
     else if (!this.heroHp) this.mode = "lost";
   }
 }

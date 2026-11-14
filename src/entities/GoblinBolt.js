@@ -7,6 +7,10 @@ class GoblinBolt extends Projectile {
     this.impactAge = null;
   }
 
+  get damageType() {
+    return "physical";
+  }
+
   update(delta, battle) {
     if (!this.active) return;
 
@@ -31,7 +35,7 @@ class GoblinBolt extends Projectile {
     if (target || this.x === baseX) {
       if (target) {
         this.x = target.x;
-        target.takeDamage(this.damage, battle);
+        target.takeDamage(this.damage, battle, { type: this.damageType });
       } else {
         battle.damageBase(this.side, this.damage);
       }

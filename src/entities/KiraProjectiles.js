@@ -37,7 +37,7 @@ class LightningBolt extends Projectile {
     const x = target?.x ?? Constants.BASES.enemy.x;
 
     if (target) {
-      target.takeDamage(this.damage, battle, false);
+      target.takeDamage(this.damage, battle, { type: "magic" });
     } else {
       battle.damageBase(this.side, this.damage);
     }

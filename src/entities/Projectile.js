@@ -51,7 +51,7 @@ class Fireball extends Projectile {
     const x = target?.x ?? Constants.BASES.enemy.x;
 
     if (target) {
-      target.takeDamage(this.damage, battle, true);
+      target.takeDamage(this.damage, battle, { type: "magic", heavy: true });
     } else {
       battle.damageBase(this.side, this.damage);
     }
@@ -64,7 +64,7 @@ class Fireball extends Projectile {
         other.hp > 0 &&
         Math.abs(other.x - x) <= this.splashRadius
       ) {
-        other.takeDamage(this.splashDamage, battle, false);
+        other.takeDamage(this.splashDamage, battle, { type: "magic" });
       }
     }
 

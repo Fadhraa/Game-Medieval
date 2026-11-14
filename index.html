@@ -19,6 +19,8 @@
 <script src="src/entities/Particle.js" defer></script>
 <script src="src/entities/Projectile.js" defer></script>
 <script src="src/entities/GoblinBolt.js" defer></script>
+<script src="src/entities/WitcherEffects.js" defer></script>
+<script src="src/entities/CombatNumber.js" defer></script>
 <script src="src/entities/KiraProjectiles.js" defer></script>
 <script src="src/entities/Unit.js" defer></script>
 <script src="src/entities/Healer.js" defer></script>
@@ -29,6 +31,9 @@
 <script src="src/entities/Goblin.js" defer></script>
 <script src="src/entities/ArcherGoblin.js" defer></script>
 <script src="src/entities/Minotaur.js" defer></script>
+<script src="src/entities/Witcher.js" defer></script>
+<script src="src/entities/Commander.js" defer></script>
+<script src="src/entities/ArenaBoss.js" defer></script>
 <script src="src/entities/Farm.js" defer></script>
 
 <!-- Battle Engine & Renderer -->
@@ -42,7 +47,6 @@
     <div class="brand"><canvas class="brand-icon" data-art="crest" width="24" height="24" aria-hidden="true"></canvas> Roti &amp; Benteng</div>
     <div class="top-actions">
       <span class="coin-balance">Koin <strong id="coinBalance">0</strong></span>
-      <button class="secondary" id="pause" type="button" hidden disabled>Jeda</button>
     </div>
   </div>
 </header>
@@ -155,6 +159,10 @@
           <div class="health-track" role="progressbar" aria-label="Kesehatan markas goblin" aria-valuemax="300" aria-valuenow="300" id="enemyBar"><div></div></div>
         </div>
       </div>
+      <div class="battle-actions">
+        <button class="secondary" id="pause" type="button" disabled>Jeda</button>
+        <button class="secondary" id="fullscreenBattle" type="button" aria-pressed="false">Layar Penuh</button>
+      </div>
     </div>
     <div class="field" tabindex="-1" id="field">
       <canvas id="scene" width="576" height="247" role="img" aria-label="Benteng kerajaan di kiri dan markas goblin di kanan. Geser untuk melihat seluruh medan pertempuran"></canvas>
@@ -164,6 +172,7 @@
           <p id="missionText">Panggil petani dengan 1 roti. Setiap setoran gandum di benteng menghasilkan 4 roti.</p>
           <button type="button" id="play">Mulai Pertempuran <span aria-hidden="true">▸</span></button>
           <button type="button" id="restart" hidden>Ulang dari awal</button>
+          <button class="secondary" type="button" id="openSettings" hidden>Pengaturan</button>
           <button class="secondary" type="button" id="leaveBattle">Kembali ke pilihan level</button>
         </div>
       </div>
@@ -172,50 +181,68 @@
       <button class="secondary" type="button" id="cameraHome">Benteng</button>
       <input id="cameraPosition" type="range" min="0" value="0" aria-label="Geser kamera">
       <button class="secondary" type="button" id="cameraEnemy">Markas musuh</button>
+      <button class="secondary" type="button" id="cameraWitcher" aria-label="Arahkan kamera ke Witcher" hidden>Witcher</button>
     </div>
+    <section class="deploy" aria-label="Panggil pasukan">
+      <div class="deploy-supplies">
+        <span class="deploy-bread"><canvas data-art="bread" width="24" height="24" aria-hidden="true"></canvas><strong id="breadCount">4</strong> roti</span>
+        <span id="farmStatus" class="deploy-farm">Panggil petani untuk panen</span>
+      </div>
+      <div class="deploy-cards">
+        <button class="deploy-card" id="summonFarmer" type="button" aria-label="Panggil Petani Gandum, 1 roti" aria-describedby="farmerLabel" aria-keyshortcuts="1" disabled>
+          <span class="deploy-portrait farmer"><canvas data-art="farmer" width="24" height="24" aria-hidden="true"></canvas><kbd aria-hidden="true">1</kbd></span>
+          <span class="deploy-name">Petani</span>
+          <span class="deploy-cost">1 roti</span>
+          <span class="deploy-state" id="farmerLabel">0/1</span>
+        </button>
+        <button class="deploy-card" id="summon" type="button" aria-label="Panggil Ksatria Pedang, 2 roti" aria-describedby="summonLabel" aria-keyshortcuts="2 Space" disabled>
+          <span class="deploy-portrait knight"><canvas data-art="knight" width="24" height="24" aria-hidden="true"></canvas><kbd aria-hidden="true">2</kbd></span>
+          <span class="deploy-name">Ksatria</span>
+          <span class="deploy-cost">2 roti</span>
+          <span class="deploy-state" id="summonLabel">Panggil</span>
+        </button>
+        <button class="deploy-card" id="summonWizard" type="button" aria-label="Panggil Wizard Api, 8 roti" aria-describedby="wizardLabel" aria-keyshortcuts="3 W" disabled>
+          <span class="deploy-portrait wizard"><canvas data-art="wizard" width="24" height="24" aria-hidden="true"></canvas><kbd aria-hidden="true">3</kbd></span>
+          <span class="deploy-name">Wizard</span>
+          <span class="deploy-cost">8 roti</span>
+          <span class="deploy-state" id="wizardLabel">Panggil</span>
+        </button>
+        <button class="deploy-card" id="summonKira" type="button" aria-label="Panggil Kira, 6 roti" aria-describedby="kiraLabel" aria-keyshortcuts="4" disabled>
+          <span class="deploy-portrait kira"><canvas data-art="kira" width="24" height="24" aria-hidden="true"></canvas><kbd aria-hidden="true">4</kbd></span>
+          <span class="deploy-name">Kira</span>
+          <span class="deploy-cost">6 roti</span>
+          <span class="deploy-state" id="kiraLabel">Panggil</span>
+        </button>
+        <button class="deploy-card" id="summonJames" type="button" aria-label="Panggil James, 4 roti" aria-describedby="jamesLabel" aria-keyshortcuts="5" disabled>
+          <span class="deploy-portrait james"><canvas data-art="james" width="24" height="24" aria-hidden="true"></canvas><kbd aria-hidden="true">5</kbd></span>
+          <span class="deploy-name">James</span>
+          <span class="deploy-cost">4 roti</span>
+          <span class="deploy-state" id="jamesLabel">Panggil</span>
+        </button>
+      </div>
+    </section>
     <div class="battle-foot">
       <span><b></b><span id="status" role="status">Siap bertempur</span></span>
-      <span id="unitCount">0 ksatria · 0 wizard · 0 kira di medan</span>
+      <span id="unitCount">0 ksatria · 0 wizard · 0 kira · 0 James · 0 monster di medan</span>
     </div>
   </section>
-  <section class="controls" aria-label="Pasukan dan persediaan">
-    <div class="card supplies">
-      <div class="portrait bread"><canvas data-art="bread" width="24" height="24" aria-hidden="true"></canvas></div>
-      <div class="supply-info">
-        <div class="resource-label">Persediaan roti</div>
-        <div class="resource-value"><strong id="breadCount">4</strong><span>roti</span></div>
-      </div>
-      <div class="production">
-        <div id="farmStatus">Panggil petani untuk panen</div>
-      </div>
+  <dialog id="settingsDialog" class="menu-panel game-dialog audio-settings" aria-labelledby="settingsTitle">
+    <h2 id="settingsTitle">Pengaturan Suara</h2>
+    <div class="volume-control">
+      <label for="musicVolume">Musik</label>
+      <output id="musicVolumeValue" for="musicVolume">75%</output>
+      <input id="musicVolume" type="range" min="0" max="100" value="75">
     </div>
-    <div class="card recruit">
-      <div class="portrait farmer"><canvas data-art="farmer" width="24" height="24" aria-hidden="true"></canvas></div>
-      <div class="unit-info"><strong>Petani Gandum</strong><span id="farmerCount">0/1 petani</span><span id="farmStats">40 HP · +4 roti per setoran</span></div>
-      <button id="summonFarmer" type="button" aria-label="Panggil petani, 1 roti" disabled><span id="farmerLabel">Panggil</span><span class="price">1 roti</span></button>
+    <div class="volume-control">
+      <label for="effectsVolume">Efek suara</label>
+      <output id="effectsVolumeValue" for="effectsVolume">80%</output>
+      <input id="effectsVolume" type="range" min="0" max="100" value="80">
     </div>
-    <div class="card recruit">
-      <div class="portrait knight"><canvas data-art="knight" width="24" height="24" aria-hidden="true"></canvas></div>
-      <div class="unit-info"><strong>Ksatria Pedang</strong><span id="knightStats">Serangan jarak dekat</span></div>
-      <button id="summon" type="button" disabled><span id="summonLabel">Panggil</span><span class="price">2 roti</span></button>
+    <div class="lobby-actions">
+      <button class="secondary" id="testEffects" type="button">Coba Efek Suara</button>
+      <button class="gold-button" id="closeSettings" type="button" autofocus>Selesai</button>
     </div>
-    <div class="card recruit">
-      <div class="portrait wizard"><canvas data-art="wizard" width="24" height="24" aria-hidden="true"></canvas></div>
-      <div class="unit-info"><strong>Wizard Api</strong><span id="wizardStats">Fireball · 35 hit + 5 sebaran</span></div>
-      <button id="summonWizard" type="button" disabled><span id="wizardLabel">Panggil</span><span class="price">8 roti</span></button>
-    </div>
-    <div class="card recruit">
-      <div class="portrait kira"><canvas data-art="kira" width="24" height="24" aria-hidden="true"></canvas></div>
-      <div class="unit-info"><strong>Kira</strong><span id="kiraStats">Healer · Lightning · 20 hit</span></div>
-      <button id="summonKira" type="button" disabled><span id="kiraLabel">Panggil</span><span class="price">6 roti</span></button>
-    </div>
-    <div class="card recruit">
-      <div class="portrait james"><canvas data-art="james" width="24" height="24" aria-hidden="true"></canvas></div>
-      <div class="unit-info"><strong>James · Tanker</strong><span id="jamesStats">HP maks. 120 · ATK 7,5</span><span>Stun 1 dtk tiap serangan ke-4</span></div>
-      <button id="summonJames" type="button" disabled><span id="jamesLabel">Panggil</span><span class="price">4 roti</span></button>
-    </div>
-  </section>
-  <p class="hint"><kbd>Spasi</kbd> Ksatria <span aria-hidden="true">·</span> <kbd>W</kbd> Wizard <span aria-hidden="true">·</span> <kbd>P</kbd> Jeda</p>
+  </dialog>
   <dialog id="resultDialog" class="menu-panel game-dialog" aria-labelledby="resultTitle">
     <h2 id="resultTitle">Hasil Pertempuran</h2>
     <p id="resultProgress"></p>

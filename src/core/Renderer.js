@@ -139,36 +139,14 @@ class Renderer {
       this.drawTree(ctx, x > 330 ? "autumnOak" : "woodlandOak", x, y, height);
     }
 
-    const worldWidth = Constants.WORLD_WIDTH;
-    const density = worldWidth / this.width;
-    this.rect(ctx, "#668254", 0, 185, worldWidth, 24);
-    for (let i = 0; i < 650 * density; i++) {
-      const x = rand() * worldWidth;
-      const y = 182 + rand() * 25;
-      const tones = ["#4f714e", "#75925b", "#8b995e", "#5e7d4f"];
-      this.rect(ctx, tones[i % 4], x, y, 1 + Math.floor(rand() * 5), 1);
-      if (i % 9 === 0) this.rect(ctx, "#a5a165", x + 1, y - 1, 1, 1);
-    }
-
-    for (let x = 0; x < worldWidth; x += 4) {
-      const y = Math.floor(200 + Math.sin(x / 18) * 1.5 + rand() * 3);
-      this.rect(ctx, "#938052", x, y, 4, 15);
-      this.rect(ctx, "#c5aa72", x, y + 2, 4, 11);
-      this.rect(ctx, "#a58b56", x, y + 11, 4, 4);
-    }
-
-    this.rect(ctx, "#587747", 0, 216, worldWidth, 31);
-    this.rect(ctx, "#779458", 0, 215, worldWidth, 3);
-    this.rect(ctx, "#476b46", 0, 235, worldWidth, 12);
-    for (let i = 0; i < 940 * density; i++) {
-      const x = rand() * worldWidth;
-      const y = 203 + rand() * 44;
-      const colors = y < 215 ? ["#b09762","#d1b683","#987e55"] : ["#547249","#668652","#7e965b","#3e6344"];
-      this.rect(ctx, colors[i % colors.length], x, y, 1 + Math.floor(rand() * 4), 1);
-      if (i % 17 === 0 && y > 220) {
-        this.rect(ctx, "#81995c", x, y - 2, 1, 3);
-        this.rect(ctx, i % 2 ? "#dfc17d" : "#eee0a7", x - 1, y - 3, 3, 1);
+    const ground = this.sprites.groundPath;
+    const groundTop = 185;
+    if (ground?.complete && ground.naturalWidth) {
+      for (let x = 0; x < Constants.WORLD_WIDTH; x += ground.naturalWidth) {
+        ctx.drawImage(ground, x, groundTop);
       }
+    } else {
+      this.rect(ctx, "#587747", 0, groundTop, Constants.WORLD_WIDTH, this.height - groundTop);
     }
   }
 
@@ -303,12 +281,15 @@ class Renderer {
     }
 
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this.sky, -Math.round(cameraX * 0.34), 0);
-    this.drawSkySprites(ctx, time, cameraX);
+    const arena = battle.mode === "ready" ? null : this.sprites[battle.arena];
+    if (!arena?.naturalWidth) {
+      ctx.drawImage(this.sky, -Math.round(cameraX * 0.34), 0);
+      this.drawSkySprites(ctx, time, cameraX);
+    }
 
     ctx.save();
     ctx.translate(-Math.round(cameraX), 0);
-    ctx.drawImage(this.backdrop, 0, 0);
+    ctx.drawImage(arena?.naturalWidth ? arena : this.backdrop, 0, 0, Constants.WORLD_WIDTH, this.height);
 
     this.drawCastle(ctx, time);
     ctx.save();
@@ -324,12 +305,15 @@ class Renderer {
     for (const aura of battle.healingAuras) {
       aura.draw(ctx, healSheet, "back");
     }
+    const witcherEffects = this.sprites.witcherEffects;
+    for (const circle of battle.witcherCircles) circle.draw(ctx, witcherEffects);
 
     // Units sorted by depth
     const units =
       battle.mode === "ready"
         ? [new Knight(), new Goblin()]
-        : [...battle.units].sort((a, b) => a.depth - b.depth);
+        : [...battle.units, ...(battle.boss?.hp === 0 ? [battle.boss] : [])]
+          .sort((a, b) => a.depth - b.depth);
 
     if (battle.mode === "ready") {
       units[0].x = 143;
@@ -338,7 +322,11 @@ class Renderer {
 
     for (const unit of units) {
       const sheet = this.sprites[unit.kind];
+      if (unit instanceof Witcher) {
+        unit.drawSummon(ctx, this.ground, time, this.sprites.minotaur, witcherEffects);
+      }
       unit.draw(ctx, this.ground, time, sheet);
+      if (unit instanceof Commander) unit.drawShieldImpact(ctx, this.ground, this.sprites.commanderImpact);
       if (unit.stunnedUntil > battle.elapsed) this.drawStun(ctx, unit, time);
     }
 
@@ -355,6 +343,8 @@ class Renderer {
     for (const projectile of battle.projectiles) {
       if (projectile instanceof LightningBolt) {
         projectile.draw(ctx, time, lightningSheet);
+      } else if (projectile instanceof WitcherBolt) {
+        projectile.draw(ctx, time, witcherEffects);
       } else if (projectile instanceof GoblinBolt) {
         projectile.draw(ctx, time, goblinBoltSheet);
       } else {
@@ -376,6 +366,8 @@ class Renderer {
     for (const particle of battle.particles) {
       particle.draw(ctx);
     }
+    for (const number of battle.combatNumbers) number.draw(ctx);
+    if (battle.mode !== "ready") battle.boss?.drawHealth(ctx, this.ground);
     ctx.restore();
   }
 
@@ -392,6 +384,7 @@ class Renderer {
       ui.pause.setAttribute("aria-label", paused ? "Lanjutkan pertempuran" : "Jeda pertempuran");
       ui.overlay.hidden = !paused && battle.mode !== "ready";
       ui.restart.hidden = !paused;
+      ui.openSettings.hidden = !paused;
 
       if (active) {
         textValue(ui.status, "Pertempuran berlangsung");
@@ -427,16 +420,16 @@ class Renderer {
       .map((v) => String(v).padStart(2, "0"))
       .join(":");
     textValue(ui.clock, clock);
+    const witcherHidden = !battle.activeWitcher;
+    if (ui.cameraWitcher.hidden !== witcherHidden) ui.cameraWitcher.hidden = witcherHidden;
 
     textValue(ui.breadCount, String(battle.bread));
     const farmers = battle.farmersByPlot;
     const farmerCount = farmers.filter(Boolean).length;
-    const farmStatus = farmerCount === 0 ? "1 roti dicadangkan untuk memanggil petani" :
-      farmers.length === 1 ? farmers[0].status :
-        farmers.map((farmer, index) => `Petak ${index + 1} · ${farmer?.status ?? "Kosong"}`).join("\n");
+    const farmStatus = farmerCount === 0 ? "1 roti untuk petani" :
+      farmers.filter(Boolean).map(farmer => farmer.status).join(" · ");
     textValue(ui.farmStatus, farmStatus);
-    textValue(ui.farmerLabel, farmerCount === farmers.length ? "Aktif" : "Panggil");
-    textValue(ui.farmerCount, `${farmerCount}/${farmers.length} petani`);
+    textValue(ui.farmerLabel, `${farmerCount}/${farmers.length} aktif`);
     ui.summonFarmer.disabled = battle.openFarmPlot === -1;
 
     // Unit counts
@@ -447,53 +440,21 @@ class Renderer {
     const monsters = battle.units.filter((unit) => unit.side === -1).length;
     textValue(ui.unitCount, `${knights} ksatria · ${wizards} wizard · ${kiras} kira · ${james} James · ${monsters} monster di medan`);
 
-    // Knight button
-    const summonRemaining = Math.max(0, battle.nextSummon - battle.elapsed);
-    textValue(
-      ui.summonLabel,
-      summonRemaining > 0
-        ? "Tunggu " + (Math.ceil(summonRemaining * 10) / 10).toFixed(1).replace(".", ",") + " dtk"
-        : "Panggil"
-    );
-    ui.summon.disabled =
-      battle.mode !== "playing" ||
-      battle.availableTroopBread < Constants.KNIGHT_COST ||
-      summonRemaining > 0;
+    const active = battle.mode === "playing";
+    const availableBread = battle.availableTroopBread;
+    const updateSummon = (button, label, cost, next) => {
+      const remaining = Math.max(0, next - battle.elapsed);
+      const needsBread = availableBread < cost;
+      const countdown = Math.ceil(remaining * 10) / 10;
+      textValue(label, remaining > 0 ? countdown.toFixed(1).replace(".", ",") + " dtk" :
+        !active ? "Panggil" : needsBread ? "Kurang roti" : "Panggil");
+      button.disabled = !active || needsBread || remaining > 0;
+    };
 
-    // Wizard button
-    const wizardRemaining = Math.max(0, battle.nextWizard - battle.elapsed);
-    textValue(
-      ui.wizardLabel,
-      wizardRemaining > 0
-        ? "Tunggu " + (Math.ceil(wizardRemaining * 10) / 10).toFixed(1).replace(".", ",") + " dtk"
-        : "Panggil"
-    );
-    ui.summonWizard.disabled =
-      battle.mode !== "playing" ||
-      battle.availableTroopBread < Constants.WIZARD_COST ||
-      wizardRemaining > 0;
-
-    const jamesRemaining = Math.max(0, battle.nextJames - battle.elapsed);
-    textValue(ui.jamesLabel, jamesRemaining > 0
-      ? "Tunggu " + (Math.ceil(jamesRemaining * 10) / 10).toFixed(1).replace(".", ",") + " dtk"
-      : "Panggil");
-    ui.summonJames.disabled = battle.mode !== "playing" ||
-      battle.availableTroopBread < Constants.JAMES_COST || jamesRemaining > 0;
-
-    // Kira button
-    if (ui.summonKira) {
-      const kiraRemaining = Math.max(0, battle.nextKira - battle.elapsed);
-      textValue(
-        ui.kiraLabel,
-        kiraRemaining > 0
-          ? "Tunggu " + (Math.ceil(kiraRemaining * 10) / 10).toFixed(1).replace(".", ",") + " dtk"
-          : "Panggil"
-      );
-      ui.summonKira.disabled =
-        battle.mode !== "playing" ||
-        battle.availableTroopBread < Constants.KIRA_COST ||
-        kiraRemaining > 0;
-    }
+    updateSummon(ui.summon, ui.summonLabel, Constants.KNIGHT_COST, battle.nextSummon);
+    updateSummon(ui.summonWizard, ui.wizardLabel, Constants.WIZARD_COST, battle.nextWizard);
+    updateSummon(ui.summonKira, ui.kiraLabel, Constants.KIRA_COST, battle.nextKira);
+    updateSummon(ui.summonJames, ui.jamesLabel, Constants.JAMES_COST, battle.nextJames);
   }
 
   drawStun(ctx, unit, time) {

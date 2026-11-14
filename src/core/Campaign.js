@@ -1,6 +1,7 @@
 "use strict";
 
-// Each wave gives the delay from the previous wave and one or more groups. G is Goblin, M is Minotaur, A is Archer Goblin.
+// Spawn one enemy at a time. The order repeats for as long as the battle lasts.
+// G is Goblin, M is Minotaur, and A is Archer Goblin.
 const Campaign = [
   {
     name: "Ladang Perbatasan",
@@ -9,19 +10,19 @@ const Campaign = [
         id: 1,
         name: "Panen Pertama",
         briefing: "Panggil petani dan gunakan hasil panen untuk menahan Goblin yang datang satu per satu.",
-        waves: [[12, "G"], [21, "G"], [20, "G"], [19, "G"], [18, "G"], [17, "G"], [16, "G"]]
+        enemies: { first: 12, interval: 18, order: "G" }
       },
       {
         id: 2,
         name: "Penyerbuan Ladang",
-        briefing: "Goblin datang berpasangan. Manfaatkan jeda antarserbuan untuk menambah pasukan.",
-        waves: [[11, "G", "G"], [23, "G", "G"], [22, "G", "G"], [21, "G", "G"], [20, "G", "G"], [19, "G", "G"]]
+        briefing: "Goblin tiba lebih rapat. Jaga petani agar pasokan roti terus mengalir.",
+        enemies: { first: 11, interval: 11, order: "G" }
       },
       {
         id: 3,
         name: "Penjaga Gerbang",
-        briefing: "Goblin membuka jalan bagi Minotaur. Siapkan pasukan jarak jauh untuk menghadapi Minotaur.",
-        waves: [[10, "G", "G"], [23, "G", "M"], [23, "G", "G"], [22, "G", "M"], [21, "G", "G"], [20, "G", "M"]]
+        briefing: "Minotaur sesekali menyusul Goblin. Siapkan pasukan jarak jauh untuk menghadapinya.",
+        enemies: { first: 10, interval: 10, order: "GGGM" }
       }
     ]
   },
@@ -31,24 +32,20 @@ const Campaign = [
       {
         id: 4,
         name: "Serbuan Bergilir",
-        briefing: "Waspadai Pemanah di belakang rombongan kedua. Menjelang akhir, Pemanah juga muncul bersama rombongan pertama.",
-        waves: [[9, "GG", "GG"], [24, "GG", "GGA"], [23, "GG", "GG"],
-                [22, "GG", "GGA"], [21, "GGA", "GG"], [20, "GG", "GGA"]]
+        briefing: "Pemanah muncul di sela pasukan Goblin. Jaga barisan depan agar pasukan pendukungmu aman.",
+        enemies: { first: 9, interval: 6.4, order: "GGGGA" }
       },
       {
         id: 5,
         name: "Barisan Berat",
-        briefing: "Minotaur maju lebih dulu. Pemanah menyusul bersama Goblin, jadi pertahankan Ksatria di depan Wizard.",
-        groupGap: 10,
-        waves: [[9, "M", "GGGA"], [23, "GG", "GGA"], [22, "MG", "GGA"],
-                [21, "M", "GGGA"], [20, "GG", "GG"], [19, "MG", "GGA"]]
+        briefing: "Minotaur tiba lebih dulu. Pertahankan Ksatria di depan Wizard untuk menghadapi pemanah yang menyusul.",
+        enemies: { first: 9, interval: 5.7, order: "MGGAGGAG" }
       },
       {
         id: 6,
         name: "Pengepungan",
-        briefing: "Pemanah datang sejak awal di belakang Minotaur. Gunakan jeda sebelum serbuan terakhir untuk menghadapi dua Pemanah yang datang bergantian.",
-        waves: [[8, "MG", "GGA"], [15, "MG", "GGA"], [14, "MM", "GGA"],
-                [14, "MGGA", "GGA"], [14, "MG", "GGA"], [29, "MGG", "GGA", "GGA"]]
+        briefing: "Witcher berlindung di belakang monster. Tembus barisan depan sebelum ia memanggil Minotaur yang lebih kuat.",
+        enemies: { first: 8, interval: 4.8, order: "MGAMGAG" }
       }
     ]
   },
@@ -58,23 +55,20 @@ const Campaign = [
       {
         id: 7,
         name: "Pos Tebing",
-        briefing: "Pemanah datang dalam rombongan kecil yang terpisah. Lindungi pasukan jarak jauh dengan barisan depan.",
-        waves: [[9, "MG", "GA"], [21, "GG", "GA", "GA"], [20, "MGA", "GGA"],
-                [19, "MG", "GGA"], [18, "GG", "GA", "GA"], [21, "MGG", "GGA", "GGA"]]
+        briefing: "Pemanah lebih sering muncul. Lindungi pasukan jarak jauh dengan barisan depan.",
+        enemies: { first: 8, interval: 4.5, order: "MGAGAGG" }
       },
       {
         id: 8,
         name: "Dua Barisan",
-        briefing: "Minotaur dan Pemanah bergantian memimpin. Simpan roti untuk mengisi lagi barisan depan saat rombongan susulan tiba.",
-        waves: [[8, "M", "GGA"], [19, "GGA", "MG"], [19, "MM", "GA"],
-                [18, "MGA", "MGA"], [18, "GG", "MGGA"], [22, "MMG", "GGA", "GGA"]]
+        briefing: "Minotaur dan Pemanah bergantian menekan. Simpan roti untuk mengisi lagi barisan depan.",
+        enemies: { first: 8, interval: 4.2, order: "MGAGMGA" }
       },
       {
         id: 9,
         name: "Gerbang Batu",
-        briefing: "Minotaur menyerang berpasangan di gelombang akhir, dengan Pemanah datang dari belakang.",
-        waves: [[8, "MG", "GGA"], [19, "MM", "GA"], [18, "MGG", "GGA"],
-                [17, "MGA", "MGA"], [18, "MGG", "GGA"], [23, "MMG", "MGGA", "GGA"]]
+        briefing: "Minotaur kerap muncul berurutan, lalu disusul Pemanah.",
+        enemies: { first: 8, interval: 3.9, order: "MMGAGAMGA" }
       }
     ]
   },
@@ -84,25 +78,71 @@ const Campaign = [
       {
         id: 10,
         name: "Hujan Baut",
-        briefing: "Pemanah datang dengan jeda pendek. Perisai James bisa menahan tembakan sambil Wizard membidik rombongan di belakang.",
-        groupGap: 6,
-        waves: [[8, "MG", "GGA", "GA"], [20, "MGA", "GA"], [18, "MG", "GGA", "GA"],
-                [17, "MM", "GA"], [17, "MGA", "GGA", "GA"], [22, "MGGA", "MGA", "GGA"]]
+        briefing: "Pemanah datang dengan jeda pendek dan Witcher muncul di belakang pasukan. Gunakan tombol Witcher untuk menemukannya.",
+        enemies: { first: 8, interval: 3.6, order: "MGAGAAMG" }
       },
       {
         id: 11,
         name: "Garda Istana",
-        briefing: "Barisan berat menekan dalam dua gelombang berturut-turut. Manfaatkan jeda setelahnya untuk membangun kembali pasukan.",
-        waves: [[8, "MG", "GGA"], [18, "MM", "GA"], [17, "MGA", "MGA"],
-                [16, "MMG", "GGA"], [24, "MGGA", "MGA"], [20, "MMG", "MGGA", "GGA"]]
+        briefing: "Barisan Minotaur lebih rapat dan terus didukung Pemanah. Jaga pasokan roti untuk bertahan.",
+        enemies: { first: 8, interval: 3.3, order: "MMAGAMG" }
       },
       {
         id: 12,
         name: "Benteng Terakhir",
-        briefing: "Tahan serangan campuran, lalu gunakan jeda terakhir untuk menghadapi Minotaur dan dua rombongan Pemanah susulan.",
-        waves: [[8, "MG", "GGA"], [18, "MM", "GA"], [17, "MGA", "MGGA"],
-                [17, "MMG", "GGA"], [16, "MGGA", "MGA"], [26, "MMG", "MGGA", "MGGAA"],
-                [24, "MMGA", "MGAA", "GGA"]]
+        boss: "commander",
+        briefing: "Panglima Mahkota Retak muncul saat HP markas turun ke 60%. Kalahkan Panglima dan hancurkan markas untuk menang.",
+        enemies: { first: 8, interval: 3, order: "MMAGAMMAAG" }
+      }
+    ]
+  },
+  {
+    name: "Rawa Senja",
+    arena: "swamp",
+    stages: [
+      {
+        id: 13,
+        name: "Jalur Rawa",
+        briefing: "Goblin Pemanah berlindung di balik Minotaur. Jaga barisan depan agar Wizard bisa menyerang dari jauh.",
+        enemies: { first: 9, interval: 4.3, order: "GMAGA" }
+      },
+      {
+        id: 14,
+        name: "Kepung Akar",
+        briefing: "Witcher datang lebih awal dan memanggil Minotaur. Tembus pelindungnya sebelum rapalan selesai.",
+        enemies: { first: 8, interval: 3.9, order: "MGAMAGA", witcherFirst: 18 }
+      },
+      {
+        id: 15,
+        name: "Jantung Rawa",
+        briefing: "Raksasa Akar muncul saat HP markas mencapai 65%. Hantaman 180 damage mengincar area di depannya. Kalahkan bos dan hancurkan markas.",
+        boss: "rootGiant",
+        enemies: { first: 8, interval: 3.7, order: "MGAAMG" }
+      }
+    ]
+  },
+  {
+    name: "Puncak Beku",
+    arena: "frost",
+    stages: [
+      {
+        id: 16,
+        name: "Jalur Salju",
+        briefing: "Pemanah datang beruntun. Lindungi pasukan pendukung dengan James dan Ksatria.",
+        enemies: { first: 8, interval: 4.1, order: "MAAGAM" }
+      },
+      {
+        id: 17,
+        name: "Gerbang Es",
+        briefing: "Minotaur dan Witcher menekan barisan depan lebih cepat. Simpan roti untuk mengganti pasukan yang gugur.",
+        enemies: { first: 7, interval: 3.6, order: "MMAGAAG", witcherFirst: 16 }
+      },
+      {
+        id: 18,
+        name: "Takhta Es",
+        briefing: "Golem Es muncul saat HP markas mencapai 70%. Gelombang bekunya melukai dan memperlambat gerak hero. Kalahkan bos dan hancurkan markas.",
+        boss: "frostGolem",
+        enemies: { first: 7, interval: 3.4, order: "MAMAGA", witcherFirst: 20 }
       }
     ]
   }

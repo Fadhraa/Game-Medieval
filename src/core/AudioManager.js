@@ -1,6 +1,9 @@
 "use strict";
 
 class AudioManager {
+  static volumeKey = "roti-benteng-audio-v1";
+  static defaultVolume = { music: 75, effects: 80 };
+
   constructor() {
     this.context = null;
     this.output = null;
@@ -11,7 +14,42 @@ class AudioManager {
     this.variations = {};
     this.pitchVariations = [1, 0.96, 1.04, 0.98];
     this.bgm = null;
-    this.isBgmPlaying = false;
+    this.musicOutput = null;
+    this.volume = this.loadVolume();
+  }
+
+  loadVolume() {
+    const volume = { ...AudioManager.defaultVolume };
+    try {
+      const stored = JSON.parse(localStorage.getItem(AudioManager.volumeKey));
+      for (const kind of Object.keys(volume)) {
+        if (Number.isFinite(stored?.[kind])) {
+          volume[kind] = Math.max(0, Math.min(100, Math.round(stored[kind])));
+        }
+      }
+    } catch {
+      // Keep defaults if storage is unavailable.
+    }
+    return volume;
+  }
+
+  setVolume(kind, percent) {
+    this.volume[kind] = percent;
+    this.applyVolume();
+    try {
+      localStorage.setItem(AudioManager.volumeKey, JSON.stringify(this.volume));
+    } catch {
+      // Keep session volume usable when storage is unavailable.
+    }
+  }
+
+  applyVolume() {
+    if (this.output) this.output.gain.value = this.volume.effects / 100;
+    if (this.musicOutput) this.musicOutput.gain.value = this.volume.music / 100;
+    else if (this.bgm) {
+      this.bgm.volume = this.volume.music / 100;
+      this.bgm.muted = this.volume.music === 0;
+    }
   }
 
   unlock() {
@@ -30,9 +68,9 @@ class AudioManager {
         compressor.release.value = 0.09;
 
         this.output = this.context.createGain();
-        this.output.gain.value = 0.8;
         this.output.connect(compressor);
         compressor.connect(this.context.destination);
+        this.applyVolume();
       }
 
       if (this.context.state !== "running") {
@@ -40,7 +78,6 @@ class AudioManager {
       }
 
       this.loadAllSamples();
-      this.playBgm();
     } catch {
       // Audio can be unavailable without breaking game flow
     }
@@ -53,18 +90,21 @@ class AudioManager {
     if (!this.bgm) {
       this.bgm = new Audio(bgmPath);
       this.bgm.loop = true;
-      this.bgm.volume = 0.75;
+      if (this.context && /^https?:$/.test(location.protocol)) {
+        try {
+          const gain = this.context.createGain();
+          this.context.createMediaElementSource(this.bgm).connect(gain);
+          gain.connect(this.context.destination);
+          this.musicOutput = gain;
+        } catch {
+          // Let the audio element play directly when routing is unavailable.
+        }
+      }
+      this.applyVolume();
     }
 
     if (this.bgm.paused) {
-      this.bgm
-        .play()
-        .then(() => {
-          this.isBgmPlaying = true;
-        })
-        .catch(() => {
-          // Autoplay may be restricted until user interaction
-        });
+      this.bgm.play().catch(() => {});
     }
   }
 
@@ -75,9 +115,7 @@ class AudioManager {
   }
 
   resumeBgm() {
-    if (this.bgm && this.bgm.paused) {
-      this.bgm.play().catch(() => {});
-    }
+    this.playBgm();
   }
 
   async loadSample(kind, path) {
@@ -201,7 +239,7 @@ class AudioManager {
   }
 
   playHit(kind) {
-    if (this.context?.state !== "running") return;
+    if (this.context?.state !== "running" || this.volume.effects === 0) return;
     const now = this.context.currentTime;
     if (now - (this.lastPlayedAt[kind] ?? -Infinity) < 0.06) return;
 

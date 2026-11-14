@@ -8,17 +8,21 @@ document.addEventListener("DOMContentLoaded", () => {
       "campaignScreen", "campaignTitle", "leaveCampaign", "chapterList", "battleBriefing",
       "barracksScreen", "barracksTitle", "leaveBarracks", "upgradeCards", "upgradeStatus",
       "resultDialog", "resultTitle", "resultDetails", "resultLobby", "resultBarracks", "resultProgress", "resultLevels", "resultNext", "resultRetry",
-      "granaryScreen", "granaryTitle", "enterGranary", "leaveGranary", "granaryCards", "granaryStatus", "farmStats",
+      "granaryScreen", "granaryTitle", "enterGranary", "leaveGranary", "granaryCards", "granaryStatus",
       "plotUpgrade", "plotCount", "plotRequirement", "buySecondPlot",
       "lobbyProgress", "progressStatus", "resetProgress", "resetDialog", "cancelReset", "confirmReset",
       "exportProgress", "importProgress", "progressFile", "importDialog", "importDetails", "confirmImport", "cancelImport",
       "saveStatus", "battleScreen", "title", "leaveBattle", "coinBalance",
-      "knightStats", "wizardStats", "kiraStats", "jamesStats", "summonJames", "jamesLabel",
+      "summonJames", "jamesLabel",
       "cameraPosition",
       "cameraHome",
       "cameraEnemy",
+      "cameraWitcher",
       "field",
       "pause",
+      "fullscreenBattle",
+      "openSettings", "settingsDialog", "closeSettings", "testEffects",
+      "musicVolume", "musicVolumeValue", "effectsVolume", "effectsVolumeValue",
       "overlay",
       "missionTitle",
       "missionText",
@@ -40,7 +44,6 @@ document.addEventListener("DOMContentLoaded", () => {
       "farmStatus",
       "summonFarmer",
       "farmerLabel",
-      "farmerCount",
       "unitCount"
     ].map((id) => [id, document.getElementById(id)])
   );
@@ -64,10 +67,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showScreen(name, heading) {
     screen = name;
+    if (name !== "battle") leaveFullscreen();
     for (const key of ["lobby", "campaign", "barracks", "granary", "battle"]) {
       ui[key + "Screen"].hidden = key !== name;
     }
-    ui.pause.hidden = name !== "battle";
+    document.body.classList.toggle("battle-view", name === "battle");
     ui.lobbyProgress.hidden = name !== "lobby";
     syncCoins();
     if (heading) {
@@ -80,11 +84,10 @@ document.addEventListener("DOMContentLoaded", () => {
     hp: "HP maks.",
     damage: "ATK",
     splashDamage: "Damage sebaran",
-    healPercent: "Pemulihan HP maks. target",
     breadPerDelivery: "Roti per setoran"
   };
 
-  function statText(kind, rank, maxDecimals = 0) {
+  function statText(kind, rank) {
     if (kind === "farm") {
       const { breadPerDelivery, speed, harvestSeconds } = Progress.farmStats(rank);
       const speedBonus = Math.round((speed / Constants.FARM.speed - 1) * 100);
@@ -96,8 +99,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     return Object.entries(Progress.stats(kind, rank)).map(([stat, value]) => {
       const percent = stat === "healPercent";
-      const rounded = value.toLocaleString("id-ID", { maximumFractionDigits: percent ? 1 : maxDecimals });
-      return statLabels[stat] + " " + rounded + (percent ? "%" : "");
+      const rounded = value.toLocaleString("id-ID", { maximumFractionDigits: percent ? 1 : 0 });
+      return percent ? "Pemulihan " + rounded + "% dari HP maks. Kira" : statLabels[stat] + " " + rounded;
     }).join(" · ");
   }
 
@@ -106,8 +109,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const kind = card.dataset.kind;
       const rank = profile.ranks[kind];
       const cost = Progress.cost(rank);
-      const max = rank === Progress.maxRank;
-      card.querySelector(".rank").textContent = "Level " + (rank + 1) + " / " + (Progress.maxRank + 1);
+      const maxRank = Progress.maxRankFor(kind);
+      const max = rank === maxRank;
+      card.querySelector(".rank").textContent = "Level " + (rank + 1) + " / " + (maxRank + 1);
       card.querySelector(".current-stat").textContent = statText(kind, rank);
       card.querySelector(".next-stat").textContent = max ? "Level maksimum" : "Berikutnya: " + statText(kind, rank + 1);
       const button = card.querySelector("button");
@@ -216,7 +220,7 @@ document.addEventListener("DOMContentLoaded", () => {
       mode === "lost" ? "Benteng Kerajaan Runtuh" : "Pertempuran Imbang";
     ui.resultDetails.replaceChildren();
     ui.resultProgress.textContent = unlockedStage ? "Level " + unlockedStage.id + " " + unlockedStage.name + " terbuka." :
-      firstClear ? "Keempat chapter selesai." : "";
+      firstClear ? "Semua chapter selesai." : "";
     const next = campaignStages[selectedStage.id];
     ui.resultNext.hidden = !victory || !next || !Progress.isUnlocked(profile, next);
     ui.resultRetry.hidden = victory;
@@ -229,6 +233,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (battle.kills.archer_goblin > 0) {
       const count = battle.kills.archer_goblin;
       rows.splice(-1, 0, [count + " Goblin Pemanah dikalahkan", Progress.coinsForKills("archer_goblin", count)]);
+    }
+    if (battle.kills.witcher > 0) {
+      const count = battle.kills.witcher;
+      rows.splice(-1, 0, [count + " Witcher dikalahkan", Progress.coinsForKills("witcher", count)]);
+    }
+    if (battle.boss && battle.kills[battle.boss.kind] > 0) {
+      rows.splice(-1, 0, [battle.boss.name + " dikalahkan", Progress.coinsForKills(battle.boss.kind, 1)]);
     }
     for (const [label, amount] of rows) {
       const row = document.createElement("div");
@@ -356,7 +367,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   ui.leaveBattle.addEventListener("click", openCampaign);
   syncCoins();
-  const maxCameraX = Constants.WORLD_WIDTH - Constants.CANVAS_WIDTH;
+  let maxCameraX = Constants.WORLD_WIDTH - Constants.CANVAS_WIDTH;
   let cameraX = 0;
 
   function moveCamera(x) {
@@ -368,6 +379,76 @@ document.addEventListener("DOMContentLoaded", () => {
   ui.cameraPosition.addEventListener("input", () => moveCamera(Number(ui.cameraPosition.value)));
   ui.cameraHome.addEventListener("click", () => moveCamera(0));
   ui.cameraEnemy.addEventListener("click", () => moveCamera(maxCameraX));
+  ui.cameraWitcher.addEventListener("click", () => {
+    const witcher = battle.activeWitcher;
+    if (witcher) moveCamera(witcher.x - ui.scene.width / 2);
+  });
+
+  function isImmersive() {
+    return document.fullscreenElement === ui.battleScreen ||
+      ui.battleScreen.classList.contains("immersive-fallback");
+  }
+
+  function resizeBattleView() {
+    const immersive = isImmersive();
+    const { clientWidth, clientHeight } = ui.field;
+    const baseWidth = Constants.CANVAS_WIDTH;
+    const width = immersive && clientHeight > 0
+      ? Math.min(Constants.WORLD_WIDTH, Math.max(baseWidth,
+        Math.round(clientWidth * Constants.CANVAS_HEIGHT / clientHeight)))
+      : baseWidth;
+    if (ui.scene.width === width) return;
+
+    const nextMax = Constants.WORLD_WIDTH - width;
+    // Keep the existing camera focus, including a view pinned to either base.
+    const nextX = cameraX === 0 ? 0 : cameraX === maxCameraX ? nextMax :
+      cameraX + (ui.scene.width - width) / 2;
+    ui.scene.width = width;
+    maxCameraX = nextMax;
+    ui.cameraPosition.max = nextMax;
+    ui.cameraPosition.disabled = nextMax === 0;
+    ui.cameraHome.disabled = nextMax === 0;
+    ui.cameraEnemy.disabled = nextMax === 0;
+    moveCamera(nextX);
+  }
+
+  function syncFullscreen() {
+    const immersive = isImmersive();
+    ui.fullscreenBattle.textContent = immersive ? "Keluar Layar Penuh" : "Layar Penuh";
+    ui.fullscreenBattle.setAttribute("aria-pressed", String(immersive));
+    resizeBattleView();
+  }
+
+  function leaveFullscreen() {
+    ui.battleScreen.classList.remove("immersive-fallback");
+    if (document.fullscreenElement === ui.battleScreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+    syncFullscreen();
+  }
+
+  let fullscreenPending = false;
+  async function toggleFullscreen() {
+    if (fullscreenPending) return;
+    if (isImmersive()) {
+      leaveFullscreen();
+      return;
+    }
+    fullscreenPending = true;
+    try {
+      await ui.battleScreen.requestFullscreen();
+      if (screen !== "battle") leaveFullscreen();
+    } catch {
+      if (screen === "battle") ui.battleScreen.classList.add("immersive-fallback");
+    } finally {
+      fullscreenPending = false;
+      syncFullscreen();
+    }
+  }
+
+  new ResizeObserver(resizeBattleView).observe(ui.field);
+  document.addEventListener("fullscreenchange", syncFullscreen);
+  ui.fullscreenBattle.addEventListener("click", toggleFullscreen);
 
   let drag = null;
   ui.scene.addEventListener("pointerdown", (event) => {
@@ -377,7 +458,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   ui.scene.addEventListener("pointermove", (event) => {
     if (drag?.id !== event.pointerId) return;
-    const scale = Constants.CANVAS_WIDTH / ui.scene.getBoundingClientRect().width;
+    const { width, height } = ui.scene.getBoundingClientRect();
+    const scale = Math.max(ui.scene.width / width, ui.scene.height / height);
     moveCamera(drag.cameraX + (drag.startX - event.clientX) * scale);
   });
   ui.scene.addEventListener("lostpointercapture", () => { drag = null; });
@@ -407,68 +489,75 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.battleBriefing.textContent = selectedStage.briefing;
     showScreen("battle");
     battle.start(profile.ranks, profile.matchHistory, selectedStage, profile.hasSecondPlot);
-    ui.farmStats.textContent = Constants.FARM.hp + " HP · " + statText("farm", profile.ranks.farm);
-    ui.knightStats.textContent = statText("knight", profile.ranks.knight);
-    ui.wizardStats.textContent = statText("wizard", profile.ranks.wizard);
-    ui.kiraStats.textContent = statText("kira", profile.ranks.kira);
-    ui.jamesStats.textContent = statText("james", profile.ranks.james, 2);
     moveCamera(0);
     lastFrame = performance.now();
     renderer.syncHud(battle, ui);
     window.scrollTo({ top: 0, behavior: "instant" });
-    ui.title.focus({ preventScroll: true });
+    (isImmersive() ? ui.field : ui.title).focus({ preventScroll: true });
   }
 
-  function summonKnight() {
-    if (battle.recruit("knight")) {
-      renderer.syncHud(battle, ui);
-    }
+  const summonSlots = [
+    ["farmer", ui.summonFarmer],
+    ["knight", ui.summon],
+    ["wizard", ui.summonWizard],
+    ["kira", ui.summonKira],
+    ["james", ui.summonJames]
+  ];
+
+  function summon(kind) {
+    if (battle.recruit(kind)) renderer.syncHud(battle, ui);
   }
 
-  function summonWizard() {
-    if (battle.recruit("wizard")) {
-      renderer.syncHud(battle, ui);
-    }
-  }
-
-  function summonKira() {
-    if (battle.recruit("kira")) {
-      renderer.syncHud(battle, ui);
-    }
-  }
-
-  // Event Listeners
   ui.play.addEventListener("click", () => {
     battle.mode === "paused" ? togglePause() : startBattle();
   });
   ui.restart.addEventListener("click", startBattle);
   ui.pause.addEventListener("click", togglePause);
-  ui.summon.addEventListener("click", summonKnight);
-  ui.summonWizard.addEventListener("click", summonWizard);
-  ui.summonJames.addEventListener("click", () => {
-    if (battle.recruit("james")) renderer.syncHud(battle, ui);
-  });
-  ui.summonFarmer.addEventListener("click", () => {
-    if (battle.recruit("farmer")) renderer.syncHud(battle, ui);
-  });
-  if (ui.summonKira) {
-    ui.summonKira.addEventListener("click", summonKira);
+  const audio = window.audioManager;
+  for (const [kind, slider, output] of [
+    ["music", ui.musicVolume, ui.musicVolumeValue],
+    ["effects", ui.effectsVolume, ui.effectsVolumeValue]
+  ]) {
+    const syncSlider = () => {
+      output.value = slider.value + "%";
+      slider.setAttribute("aria-valuetext", output.value);
+      ui.testEffects.disabled = audio.volume.effects === 0;
+    };
+    slider.value = audio.volume[kind];
+    syncSlider();
+    slider.addEventListener("input", () => {
+      audio.setVolume(kind, slider.valueAsNumber);
+      syncSlider();
+    });
+  }
+  ui.openSettings.addEventListener("click", () => ui.settingsDialog.showModal());
+  ui.closeSettings.addEventListener("click", () => ui.settingsDialog.close());
+  ui.testEffects.addEventListener("click", () => audio.playHit("knight"));
+  for (const [kind, button] of summonSlots) {
+    button.addEventListener("click", () => summon(kind));
   }
 
   document.addEventListener("keydown", (event) => {
-    if (screen !== "battle" || ui.resultDialog.open || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (screen !== "battle" || ui.resultDialog.open || ui.settingsDialog.open ||
+        event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.code === "Escape" && ui.battleScreen.classList.contains("immersive-fallback")) {
+      leaveFullscreen();
+      return;
+    }
     if (event.target !== ui.cameraPosition && (event.code === "ArrowLeft" || event.code === "ArrowRight")) {
       event.preventDefault();
       moveCamera(cameraX + (event.code === "ArrowLeft" ? -32 : 32));
     }
     if (event.repeat) return;
     if (event.code === "KeyP") togglePause();
-    if (event.code === "Space" && battle.mode === "playing" && !event.target.closest("button, input")) {
+    if (battle.mode !== "playing" || event.target.closest("input:not([type='range']), textarea, select, [contenteditable]")) return;
+    const numberKey = /^(?:Digit|Numpad)([1-5])$/.exec(event.code);
+    const slot = numberKey ? summonSlots[Number(numberKey[1]) - 1] :
+      event.code === "KeyW" ? summonSlots[2] :
+      event.code === "Space" && !event.target.closest("button, input") ? summonSlots[1] : null;
+    if (slot) {
       event.preventDefault();
-      summonKnight();
-    }
-    if (event.code === "KeyW" && battle.mode === "playing") {
-      summonWizard();
+      summon(slot[0]);
     }
   });
 
@@ -491,7 +580,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (wasPlaying && ["won", "lost", "draw"].includes(battle.mode)) finishBattle();
     } else if (screen === "lobby") {
       renderer.render(battle, now / 1000, 0);
-      ui.courtyardArt.getContext("2d").drawImage(ui.scene, 0, 0);
+      ui.courtyardArt.getContext("2d").drawImage(ui.scene, 0, 0, Constants.CANVAS_WIDTH,
+        Constants.CANVAS_HEIGHT, 0, 0, Constants.CANVAS_WIDTH, Constants.CANVAS_HEIGHT);
     }
 
     requestAnimationFrame(frame);

@@ -6,8 +6,8 @@ const Progress = {
   maxFileBytes: 16384,
   storageKey: "roti-benteng-progress-v1",
   victoryReward: 50,
-  killReward: { goblin: 1, minotaur: 5, archer_goblin: 1 },
-  maxRank: 3,
+  killReward: { goblin: 1, minotaur: 5, archer_goblin: 1, witcher: 10, commander: 50, rootGiant: 70, frostGolem: 90 },
+  maxRank: 7,
   secondPlotCost: 80,
   historyLimit: 5,
   upgrades: {
@@ -43,12 +43,17 @@ const Progress = {
     },
     farm: {
       name: "Petani Gandum",
+      maxRank: 3,
       stats: { breadPerDelivery: { base: Constants.FARM.breadPerDelivery, step: 1 } }
     }
   },
 
   formatCoins(tenths) {
     return (tenths / 10).toLocaleString("id-ID", { maximumFractionDigits: 1 });
+  },
+
+  maxRankFor(kind) {
+    return this.upgrades[kind].maxRank ?? this.maxRank;
   },
 
   load() {
@@ -81,7 +86,7 @@ const Progress = {
     if (!integer(profile?.coins) || !integer(profile.clearedThrough, campaignStages.length) ||
         typeof profile.hasSecondPlot !== "boolean" ||
         (profile.hasSecondPlot && !this.canUnlockSecondPlot(profile)) ||
-        !Object.keys(this.upgrades).every(kind => integer(profile.ranks?.[kind], this.maxRank)) ||
+        !Object.keys(this.upgrades).every(kind => integer(profile.ranks?.[kind], this.maxRankFor(kind))) ||
         !Array.isArray(profile.matchHistory) || profile.matchHistory.length > this.historyLimit ||
         this.readMatchHistory(profile.matchHistory).length !== profile.matchHistory.length) {
       throw new Error("Isi file progres tidak valid.");
@@ -93,7 +98,7 @@ const Progress = {
     const ranks = {};
     for (const kind of Object.keys(this.upgrades)) {
       const rank = data?.ranks?.[kind];
-      ranks[kind] = Number.isInteger(rank) && rank >= 0 && rank <= this.maxRank ? rank : 0;
+      ranks[kind] = Number.isInteger(rank) && rank >= 0 && rank <= this.maxRankFor(kind) ? rank : 0;
     }
     const coins = data?.coins;
     const clearedThrough = data?.clearedThrough;
@@ -173,7 +178,7 @@ const Progress = {
     if (!Object.hasOwn(this.upgrades, kind)) return false;
     const rank = profile.ranks[kind];
     const cost = this.cost(rank);
-    if (rank >= this.maxRank || profile.coins < cost) return false;
+    if (rank >= this.maxRankFor(kind) || profile.coins < cost) return false;
     profile.coins -= cost;
     profile.ranks[kind]++;
     return true;

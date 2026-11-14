@@ -1,20 +1,22 @@
 "use strict";
 
 class Minotaur extends Unit {
-  constructor(depth = 0) {
+  constructor(depth = 0, empowered = false) {
+    const multiplier = empowered ? 1.2 : 1;
     super({
       kind: "minotaur",
       side: -1,
       start: Constants.BASES.enemy.spawnX,
       depth,
-      hp: 124,
-      damage: 20,
+      hp: 124 * multiplier,
+      damage: 20 * multiplier,
       speed: 20,
       attackEvery: 2.5,
       reach: 29
     });
 
     this.healed = false;
+    this.empowered = empowered;
     this.healingTimer = 0;
   }
 
@@ -35,13 +37,16 @@ class Minotaur extends Unit {
     };
   }
 
-  takeDamage(amount, battle, isHeavy = false) {
+  takeDamage(amount, battle, { heavy = false, type = "physical" } = {}) {
     // Invulnerable while channeling healing
     if (this.healingTimer > 0) return;
+    const damage = this.empowered && type === "magic" ? amount * 0.92 : amount;
 
     // Passive trigger: when damage reduces HP to < 25% (<= 31 HP)
-    if (!this.healed && this.hp - amount <= this.maxHp * 0.25) {
-      this.hp = Math.max(1, this.hp - amount); // Clamped so fatal blow doesn't kill
+    if (!this.healed && this.hp - damage <= this.maxHp * 0.25) {
+      const previousHp = this.hp;
+      this.hp = Math.max(1, this.hp - damage); // Clamped so fatal blow doesn't kill
+      battle.showCombatNumber(this, this.hp - previousHp);
       this.healed = true;
       this.healingTimer = 1.0; // 1 second channeling
       this.flash = 0.25;
@@ -49,7 +54,7 @@ class Minotaur extends Unit {
       return;
     }
 
-    super.takeDamage(amount, battle, isHeavy);
+    super.takeDamage(damage, battle, { heavy });
   }
 
   update(delta, battle) {
@@ -61,7 +66,7 @@ class Minotaur extends Unit {
       this.cooldown = Math.max(this.cooldown, 0.5);
 
       if (this.healingTimer === 0) {
-        this.hp = Math.round(this.maxHp * 0.5); // Restored to 50% HP (62 HP)
+        this.receiveHealing(Math.round(this.maxHp * 0.5) - this.hp, battle);
         // Spawn green healing sparkle particles
         for (let i = 0; i < 14; i++) {
           battle.spawnParticle(
@@ -97,9 +102,6 @@ class Minotaur extends Unit {
     const hasSheet = spriteSheet?.complete && spriteSheet.naturalWidth > 0;
 
     if (hasSheet) {
-      const [row, frame] = this.getPose(time);
-      const direction = this.side === (cfg.nativeDirection ?? 1) ? 1 : -1;
-
       // Ground shadow
       ctx.fillStyle = "#5e6040";
       ctx.fillRect(
@@ -108,41 +110,56 @@ class Minotaur extends Unit {
         cfg.shadowWidth,
         2
       );
-
-      // Draw sprite
-      ctx.save();
-      ctx.translate(Math.round(this.x), Math.round(feet));
-      ctx.scale(direction * cfg.scale, cfg.scale);
-      ctx.imageSmoothingEnabled = false;
-      if (this.flash > 0) ctx.filter = "brightness(1.55)";
-
-      ctx.drawImage(
-        spriteSheet,
-        frame * cfg.frameWidth,
-        row * cfg.frameHeight,
-        cfg.frameWidth,
-        cfg.frameHeight,
-        -cfg.originX,
-        -cfg.feetOrigin,
-        cfg.frameWidth,
-        cfg.frameHeight
-      );
-      ctx.restore();
-    } else {
-      this.drawProcedural(ctx, feet);
     }
+    this.drawBody(ctx, feet, time, spriteSheet, cfg);
 
     // Health Bar with green color during healing
-    if (this.hp < this.maxHp) {
+    if (this.hp < this.maxHp || this.empowered) {
       const barY = feet - cfg.barYOffset;
       const barW = cfg.barWidth;
       ctx.fillStyle = "#30362b";
       ctx.fillRect(Math.round(this.x - barW / 2), Math.round(barY), barW, cfg.barHeight);
 
-      ctx.fillStyle = this.healingTimer > 0 ? "#55d688" : "#ef9a6e";
+      ctx.fillStyle = this.healingTimer > 0 ? "#55d688" : this.empowered ? "#c695f5" : "#ef9a6e";
       const fillW = Math.ceil((this.hp / this.maxHp) * (barW - 2));
       ctx.fillRect(Math.round(this.x - barW / 2 + 1), Math.round(barY + 1), fillW, 1);
     }
+  }
+
+  drawBody(ctx, feet, time, spriteSheet, cfg) {
+    if (!spriteSheet?.complete || !spriteSheet.naturalWidth) {
+      this.drawProcedural(ctx, feet);
+      return;
+    }
+
+    const [row, frame] = this.getPose(time);
+    const direction = this.side === cfg.nativeDirection ? 1 : -1;
+    ctx.save();
+    ctx.translate(Math.round(this.x), Math.round(feet));
+    ctx.scale(direction * cfg.scale, cfg.scale);
+    ctx.imageSmoothingEnabled = false;
+    if (this.flash > 0) ctx.filter = "brightness(1.55)";
+    ctx.drawImage(spriteSheet, frame * cfg.frameWidth, row * cfg.frameHeight,
+      cfg.frameWidth, cfg.frameHeight, -cfg.originX, -cfg.feetOrigin,
+      cfg.frameWidth, cfg.frameHeight);
+    ctx.restore();
+  }
+
+  drawEmerging(ctx, ground, time, spriteSheet, progress) {
+    if (progress <= 0) return;
+
+    const cfg = this.getRenderConfig();
+    const feet = ground + this.depth;
+    const height = Math.ceil(cfg.feetOrigin * cfg.scale);
+    const width = Math.ceil(cfg.frameWidth * cfg.scale);
+    const buriedDepth = Math.round(height * (1 - progress));
+    // Clip at the portal so no part of the sprite appears below ground level.
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(Math.round(this.x) - width, feet - height, width * 2, height);
+    ctx.clip();
+    this.drawBody(ctx, feet + buriedDepth, time, spriteSheet, cfg);
+    ctx.restore();
   }
 
   drawProcedural(ctx, feet) {

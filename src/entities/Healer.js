@@ -11,7 +11,7 @@ class Healer extends Unit {
 
     this.healSpeed = config.healSpeed ?? 2.25;
     this.healCooldown = 0;
-    this.healPower = config.healPower ?? 0.05; // Fraction of the target’s max HP
+    this.healPower = config.healPower ?? 0.05;
     this.healTarget = null;
     this.isHealing = false;
     this.healReach = config.healReach ?? config.reach ?? 155; // Sama dengan jarak serangan
@@ -45,15 +45,16 @@ class Healer extends Unit {
     return bestTarget;
   }
 
+  healAmount(target) {
+    return target.maxHp * this.healPower;
+  }
+
   /**
    * Applies healing to the target, triggers visual aura & particles,
    * and plays the healing audio effect.
    */
   performHeal(target, battle) {
-    if (!target || target.hp <= 0 || target.hp >= target.maxHp) return;
-
-    const healAmount = target.maxHp * this.healPower;
-    target.hp = Math.min(target.maxHp, target.hp + healAmount);
+    if (!target || !target.receiveHealing(this.healAmount(target), battle)) return;
 
     // Spawn green/cyan healing aura under the target's feet
     const targetFeet = Constants.GROUND_Y + (target.depth ?? 0);
