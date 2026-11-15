@@ -59,10 +59,11 @@ class Kira extends Healer {
   update(delta, battle) {
     // Keep this cast exclusive until its animation and any launched bolt finish.
     if (this.hp > 0 && (this.swing < this.castDuration || this.lightningBolt?.active)) {
-      this.swing += delta;
+      const { attack } = this.getSpeedMultipliers(battle);
+      this.swing += delta * attack;
       this.flash = Math.max(0, this.flash - delta);
-      this.cooldown = Math.max(0, this.cooldown - delta);
-      this.healCooldown = Math.max(0, this.healCooldown - delta);
+      this.cooldown = Math.max(0, this.cooldown - delta * attack);
+      this.healCooldown = Math.max(0, this.healCooldown - delta * attack);
       return;
     }
 

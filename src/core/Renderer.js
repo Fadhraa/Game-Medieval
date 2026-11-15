@@ -320,12 +320,19 @@ class Renderer {
       units[1].x = Constants.BASES.enemy.x - 42;
     }
 
+    const speedAuraSheet = this.sprites.baseSpeedAura;
     for (const unit of units) {
       const sheet = this.sprites[unit.kind];
+      if (battle.hasBaseSpeedBuff(unit)) {
+        this.drawBaseSpeedAura(ctx, unit, time, speedAuraSheet, "back");
+      }
       if (unit instanceof Witcher) {
         unit.drawSummon(ctx, this.ground, time, this.sprites.minotaur, witcherEffects);
       }
       unit.draw(ctx, this.ground, time, sheet);
+      if (battle.hasBaseSpeedBuff(unit)) {
+        this.drawBaseSpeedAura(ctx, unit, time, speedAuraSheet, "front");
+      }
       if (unit instanceof Commander) unit.drawShieldImpact(ctx, this.ground, this.sprites.commanderImpact);
       if (unit.stunnedUntil > battle.elapsed) this.drawStun(ctx, unit, time);
     }
@@ -340,6 +347,8 @@ class Renderer {
     const fireballSheet = this.sprites.fireball;
     const lightningSheet = this.sprites.lightning;
     const goblinBoltSheet = this.sprites.goblinBolt;
+    const lynceArrowSheet = this.sprites.lynceArrow;
+    const lynceSkillArrowSheet = this.sprites.lynceSkillArrow;
     for (const projectile of battle.projectiles) {
       if (projectile instanceof LightningBolt) {
         projectile.draw(ctx, time, lightningSheet);
@@ -347,14 +356,21 @@ class Renderer {
         projectile.draw(ctx, time, witcherEffects);
       } else if (projectile instanceof GoblinBolt) {
         projectile.draw(ctx, time, goblinBoltSheet);
+      } else if (projectile instanceof LynceSkillArrow) {
+        projectile.draw(ctx, time, lynceSkillArrowSheet);
+      } else if (projectile instanceof LynceArrow) {
+        projectile.draw(ctx, time, lynceArrowSheet);
       } else {
         projectile.draw(ctx, time, fireballSheet);
       }
     }
 
-    // Fireball bursts
+    // Fireball & arrow bursts
     for (const burst of battle.bursts) {
       burst.draw(ctx, fireballSheet);
+    }
+    for (const burst of battle.arrowBursts) {
+      burst.draw(ctx, burst.skill ? lynceSkillArrowSheet : lynceArrowSheet);
     }
 
     // Lightning bursts
@@ -437,8 +453,9 @@ class Renderer {
     const wizards = battle.units.filter((u) => u.kind === "wizard").length;
     const kiras = battle.units.filter((u) => u.kind === "kira").length;
     const james = battle.units.filter((u) => u.kind === "james").length;
+    const lynces = battle.units.filter((u) => u.kind === "lynce").length;
     const monsters = battle.units.filter((unit) => unit.side === -1).length;
-    textValue(ui.unitCount, `${knights} ksatria · ${wizards} wizard · ${kiras} kira · ${james} James · ${monsters} monster di medan`);
+    textValue(ui.unitCount, `${knights} ksatria · ${wizards} wizard · ${kiras} kira · ${james} James · ${lynces} Lynce · ${monsters} monster di medan`);
 
     const active = battle.mode === "playing";
     const availableBread = battle.availableTroopBread;
@@ -455,6 +472,56 @@ class Renderer {
     updateSummon(ui.summonWizard, ui.wizardLabel, Constants.WIZARD_COST, battle.nextWizard);
     updateSummon(ui.summonKira, ui.kiraLabel, Constants.KIRA_COST, battle.nextKira);
     updateSummon(ui.summonJames, ui.jamesLabel, Constants.JAMES_COST, battle.nextJames);
+    updateSummon(ui.summonLynce, ui.lynceLabel, Constants.LYNCE_COST, battle.nextLynce);
+
+    if (ui.baseSkillButton && ui.baseSkillLabel) {
+      const unlocked = battle.isBaseSkillUnlocked();
+      ui.baseSkillButton.hidden = !unlocked;
+      if (unlocked) {
+        const skillActive = battle.baseSkillActiveUntil > battle.elapsed;
+        const skillCooldown = !skillActive && battle.baseSkillCooldownUntil > battle.elapsed;
+        ui.baseSkillButton.classList.toggle("is-active", skillActive);
+        ui.baseSkillButton.classList.toggle("is-cooldown", skillCooldown);
+        if (skillActive) {
+          const secs = Math.ceil(battle.baseSkillActiveUntil - battle.elapsed);
+          textValue(ui.baseSkillLabel, `Aktif ${secs}d`);
+        } else if (skillCooldown) {
+          const secs = Math.ceil(battle.baseSkillCooldownUntil - battle.elapsed);
+          textValue(ui.baseSkillLabel, `Jeda ${secs}d`);
+        } else {
+          textValue(ui.baseSkillLabel, "Siap [Q]");
+        }
+        ui.baseSkillButton.disabled = !active || skillActive || skillCooldown;
+      }
+    }
+  }
+
+  drawBaseSpeedAura(ctx, unit, time, spriteSheet, layer = "back") {
+    if (!spriteSheet?.complete || !spriteSheet.naturalWidth) return;
+    const frameW = 32;
+    const frameH = 24;
+    const split = 16;
+    const frame = Math.floor(time * 10) % 6;
+    const srcY = layer === "front" ? split : 0;
+    const srcH = layer === "front" ? frameH - split : split;
+    const feet = this.ground + (unit.depth ?? 0);
+    const destX = Math.round(unit.x - frameW / 2);
+    const destY = Math.round(feet - 17) + srcY;
+
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(
+      spriteSheet,
+      frame * frameW,
+      srcY,
+      frameW,
+      srcH,
+      destX,
+      destY,
+      frameW,
+      srcH
+    );
+    ctx.restore();
   }
 
   drawStun(ctx, unit, time) {
@@ -536,6 +603,9 @@ class Renderer {
     }
     if (kind === "kira") {
       return { ...Kira.spriteGeometry, portraitX: 12, portraitScale: 0.62 };
+    }
+    if (kind === "lynce") {
+      return { ...Lynce.spriteGeometry, portraitX: 11, portraitScale: 0.62 };
     }
     return { frameWidth: 48, frameHeight: 48, originX: 20, feetOrigin: 43, portraitX: 11, portraitScale: 0.66 };
   }

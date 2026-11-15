@@ -81,14 +81,15 @@ class Healer extends Unit {
       return;
     }
 
-    this.healCooldown = Math.max(0, this.healCooldown - delta);
+    const { attack } = this.getSpeedMultipliers(battle);
+    this.healCooldown = Math.max(0, this.healCooldown - delta * attack);
 
     // Priority 1: Check if an ally ahead needs healing
     const targetToHeal = this.findHealTarget(battle);
 
     if (targetToHeal) {
       this.flash = Math.max(0, this.flash - delta);
-      this.swing += delta;
+      this.swing += delta * attack;
       this.isHealing = true;
       this.healTarget = targetToHeal;
       this.moving = false;

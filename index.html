@@ -22,12 +22,14 @@
 <script src="src/entities/WitcherEffects.js" defer></script>
 <script src="src/entities/CombatNumber.js" defer></script>
 <script src="src/entities/KiraProjectiles.js" defer></script>
+<script src="src/entities/LynceProjectiles.js" defer></script>
 <script src="src/entities/Unit.js" defer></script>
 <script src="src/entities/Healer.js" defer></script>
 <script src="src/entities/Knight.js" defer></script>
 <script src="src/entities/James.js" defer></script>
 <script src="src/entities/Wizard.js" defer></script>
 <script src="src/entities/Kira.js" defer></script>
+<script src="src/entities/Lynce.js" defer></script>
 <script src="src/entities/Goblin.js" defer></script>
 <script src="src/entities/ArcherGoblin.js" defer></script>
 <script src="src/entities/Minotaur.js" defer></script>
@@ -86,7 +88,7 @@
 
   <dialog id="resetDialog" class="menu-panel game-dialog" aria-labelledby="resetTitle" aria-describedby="resetSummary">
     <h2 id="resetTitle">Reset karakter, Lumbung, dan koin?</h2>
-    <p id="resetSummary">Ksatria, Wizard, Kira, James, dan Lumbung kembali ke level 1. Ladang kembali menjadi 1 petak dan saldo menjadi 0 koin.</p>
+    <p id="resetSummary">Ksatria, Wizard, Kira, James, Lynce, dan Lumbung kembali ke level 1. Ladang kembali menjadi 1 petak dan saldo menjadi 0 koin.</p>
     <div class="lobby-actions">
       <button class="secondary" id="cancelReset" type="button" autofocus>Batal</button>
       <button class="danger-button" id="confirmReset" type="button">Reset progres</button>
@@ -187,6 +189,10 @@
       <div class="deploy-supplies">
         <span class="deploy-bread"><canvas data-art="bread" width="24" height="24" aria-hidden="true"></canvas><strong id="breadCount">4</strong> roti</span>
         <span id="farmStatus" class="deploy-farm">Panggil petani untuk panen</span>
+        <button class="base-skill-button" id="baseSkillButton" type="button" aria-label="Skill Benteng: tingkatkan kecepatan hero selama 10 detik" aria-describedby="baseSkillLabel" aria-keyshortcuts="Q" hidden disabled>
+          <span class="base-skill-title">Skill Benteng</span>
+          <span class="base-skill-state" id="baseSkillLabel">Siap [Q]</span>
+        </button>
       </div>
       <div class="deploy-cards">
         <button class="deploy-card" id="summonFarmer" type="button" aria-label="Panggil Petani Gandum, 1 roti" aria-describedby="farmerLabel" aria-keyshortcuts="1" disabled>
@@ -219,11 +225,17 @@
           <span class="deploy-cost">4 roti</span>
           <span class="deploy-state" id="jamesLabel">Panggil</span>
         </button>
+        <button class="deploy-card" id="summonLynce" type="button" aria-label="Panggil Lynce, 5 roti" aria-describedby="lynceLabel" aria-keyshortcuts="6" disabled>
+          <span class="deploy-portrait lynce"><canvas data-art="lynce" width="24" height="24" aria-hidden="true"></canvas><kbd aria-hidden="true">6</kbd></span>
+          <span class="deploy-name">Lynce</span>
+          <span class="deploy-cost">5 roti</span>
+          <span class="deploy-state" id="lynceLabel">Panggil</span>
+        </button>
       </div>
     </section>
     <div class="battle-foot">
       <span><b></b><span id="status" role="status">Siap bertempur</span></span>
-      <span id="unitCount">0 ksatria · 0 wizard · 0 kira · 0 James · 0 monster di medan</span>
+      <span id="unitCount">0 ksatria · 0 wizard · 0 kira · 0 James · 0 Lynce · 0 monster di medan</span>
     </div>
   </section>
   <dialog id="settingsDialog" class="menu-panel game-dialog audio-settings" aria-labelledby="settingsTitle">

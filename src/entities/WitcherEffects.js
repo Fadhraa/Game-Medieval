@@ -5,6 +5,14 @@ class WitcherBolt extends GoblinBolt {
     return "magic";
   }
 
+  update(delta, battle) {
+    const wasImpacting = this.impactAge !== null;
+    super.update(delta, battle);
+    if (!wasImpacting && this.impactAge !== null) {
+      window.audioManager?.playHit("witcherImpact");
+    }
+  }
+
   draw(ctx, time, sheet) {
     if (this.impactAge !== null || !sheet?.complete || !sheet.naturalWidth) return;
     const frame = Math.floor(this.age * 16) % 4;

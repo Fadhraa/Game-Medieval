@@ -68,11 +68,47 @@ h1 i { color: var(--rust); font-weight: 400; }
 .battle-foot > span:first-child { display: flex; align-items: center; gap: 8px; }
 .battle-foot b { width: 7px; height: 7px; background: #a9c48a; border-radius: 1px; }
 .deploy { padding: 7px 10px 5px; background: #292f27; border-top: 1px solid #4c5142; color: #fff3d7; }
-.deploy-supplies { display: flex; align-items: center; gap: 12px; padding-inline: 3px; min-height: 28px; font-size: 12px; }
+.deploy-supplies { display: flex; align-items: center; gap: 12px; padding-inline: 3px; min-height: 28px; font-size: 12px; flex-wrap: wrap; }
 .deploy-bread { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .deploy-bread canvas { width: 25px; height: 25px; }
 .deploy-bread strong { font-size: 16px; font-variant-numeric: tabular-nums; }
 .deploy-farm { color: #ddd1b4; }
+.base-skill-button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid #6cb8ff;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #2b6fb8 0%, #1c4d84 100%);
+  color: #edf7ff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.base-skill-button[hidden] { display: none; }
+.base-skill-button:disabled { opacity: 0.72; cursor: default; }
+.base-skill-button.is-active {
+  opacity: 1;
+  border-color: #9be8ff;
+  background: linear-gradient(180deg, #359eff 0%, #1e6bc2 100%);
+  box-shadow: 0 0 8px rgba(108, 210, 255, 0.55);
+}
+.base-skill-button.is-cooldown {
+  border-color: #556474;
+  background: #353f48;
+  color: #cbd5df;
+}
+.base-skill-state {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(15, 25, 38, 0.45);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
 .deploy-cards {
   display: grid;
   grid-auto-flow: column;
@@ -103,6 +139,7 @@ h1 i { color: var(--rust); font-weight: 400; }
 .deploy-portrait.knight, .deploy-portrait.james { background: #dce8e2; }
 .deploy-portrait.wizard { background: #e2dff2; }
 .deploy-portrait.kira { background: #dce8f0; }
+.deploy-portrait.lynce { background: #f2e2cf; }
 .deploy-portrait canvas { width: 32px; height: 32px; }
 .deploy-card kbd { position: absolute; top: 0; left: -9px; min-width: 13px; border-radius: 3px; padding: 0 2px; background: #292e26; color: #fff4d6; font: 10px/13px ui-monospace, monospace; }
 .deploy-name { font-size: 13px; font-weight: 800; }

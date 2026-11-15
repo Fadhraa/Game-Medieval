@@ -11,7 +11,7 @@
 - **Kampanye 6 Chapter (18 Stage) & 3 Bioma Arena**: Mulai dari *Ladang Perbatasan*, *Benteng Goblin*, *Jalur Pegunungan*, *Benteng Raja Goblin*, hingga bioma baru *Rawa Senja* dan *Puncak Beku*.
 - **AI Enemy Director & Variasi Musuh + Boss**: Musuh beradaptasi terhadap komposisi pasukan pemain, lengkap dengan unit pemanah (*Archer Goblin*), penyihir penyembuh & pemanggil (*Witcher*), serta 3 Boss unik (*Panglima Mahkota Retak*, *Raksasa Akar*, dan *Golem Es*).
 - **Sistem Progres, Upgrade & Save File**: Kumpulkan koin dari kemenangan dan eliminasi musuh untuk meningkatkan level pasukan di **Barak** (hingga Level 8) dan efisiensi petani di **Lumbung** (hingga Level 4). Progres tersimpan otomatis di `localStorage` dan dapat di-**Export / Import** dalam format JSON.
-- **Visual & Audio Lengkap**: Latar belakang paralaks multi-lapisan, *floating combat numbers* (damage & heal), indikator status (*stun* & *slow*), serta efek suara (`.wav`) dan musik latar (`.mp3`).
+- **Visual & Audio Lengkap**: Latar belakang paralaks multi-lapisan, *floating combat numbers* (damage & heal), indikator status (*stun* & *slow*), efek suara (`.wav`), serta musik latar Lobi (`lobby.wav`) dan Pertempuran (`1.mp3`).
 
 ---
 
@@ -47,7 +47,7 @@ Game memiliki alur antarmuka penuh di `index.html` dan `src/main.js`:
 | **Archer Goblin** (`ArcherGoblin.js`) | Pemanah Jarak Jauh | 35 HP · 20 ATK · Menembakkan panah (*Goblin Bolt*) dari jarak `140px`. | 0,1 koin |
 | **Minotaur** (`Minotaur.js`) | Heavy Bruiser | 124 HP · 20 ATK · Pasif: saat HP ≤ 25%, kebal 1 detik lalu memulihkan HP ke 50%. | 0,5 koin |
 | **Witcher** (`Witcher.js`) | Support & Summoner | 40 HP · 50 ATK · Bersembunyi di belakang, menyembuhkan monster di depannya (12% HP), dan memanggil Minotaur pelindung. | 1,0 koin |
-| **Panglima Mahkota Retak** (`Commander.js`) | **Boss Stage 12** | 6.000 HP · 100 ATK · Muncul saat HP markas musuh ≤ 60%. Tahan 20% magic damage, punya mode *Guard* (-30% damage) diikuti tebasan area 300 damage. | 5,0 koin |
+| **Panglima Mahkota Retak** (`Commander.js`) | **Boss Stage 12** | 6.000 HP · 100 ATK (tiap 1 dtk) · Muncul saat HP markas musuh ≤ 60%. Tahan 20% magic damage, punya mode *Guard* (-30% damage) diikuti tebasan area 300 damage. | 5,0 koin |
 | **Raksasa Akar** (`ArenaBoss.js`) | **Boss Stage 15** | 4.600 HP · 85 ATK · Muncul saat HP markas musuh ≤ 65%. Skill hantaman fisik area (`72px`) sebesar 180 damage tiap 12 detik. | 7,0 koin |
 | **Golem Es** (`ArenaBoss.js`) | **Boss Stage 18** | 5.900 HP · 100 ATK · Muncul saat HP markas musuh ≤ 70%. Skill gelombang es area (`108px`) sebesar 140 damage + efek **Slow 3 detik**. | 9,0 koin |
 
@@ -75,8 +75,8 @@ roti-dan-benteng/
 ├── index.html                  # Struktur multi-screen & urutan pemuatan script
 ├── style.css                   # Desain responsif, kartu HUD, dan dialog menu
 ├── assets/
-│   ├── Back_sound/             # Musik latar (1.mp3)
-│   ├── sfx/                    # Efek suara (.wav) untuk pedang, fireball, petir, & heal
+│   ├── Back_sound/             # Musik latar pertempuran (1.mp3) & lobi (lobby.wav)
+│   ├── sfx/                    # Efek suara (.wav) untuk pedang, fireball, petir, heal, boss commander, & witcher
 │   └── sprites/
 │       ├── background/         # Aset paralaks langit, gunung, pohon, rawa, & salju
 │       ├── farm/               # Petak ladang, tunas gandum, & gandum matang

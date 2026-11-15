@@ -13,7 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
       "lobbyProgress", "progressStatus", "resetProgress", "resetDialog", "cancelReset", "confirmReset",
       "exportProgress", "importProgress", "progressFile", "importDialog", "importDetails", "confirmImport", "cancelImport",
       "saveStatus", "battleScreen", "title", "leaveBattle", "coinBalance",
-      "summonJames", "jamesLabel",
+      "summonJames", "jamesLabel", "summonLynce", "lynceLabel",
+      "baseSkillButton", "baseSkillLabel",
       "cameraPosition",
       "cameraHome",
       "cameraEnemy",
@@ -67,7 +68,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function showScreen(name, heading) {
     screen = name;
-    if (name !== "battle") leaveFullscreen();
+    if (name !== "battle") {
+      leaveFullscreen();
+      window.audioManager?.playLobbyBgm();
+    }
     for (const key of ["lobby", "campaign", "barracks", "granary", "battle"]) {
       ui[key + "Screen"].hidden = key !== name;
     }
@@ -162,13 +166,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function openLobby() {
     battle.mode = "ready";
-    window.audioManager?.pauseBgm();
     showScreen("lobby", ui.lobbyTitle);
   }
 
   function openCampaign() {
     battle.mode = "ready";
-    window.audioManager?.pauseBgm();
     ui.chapterList.replaceChildren();
     for (const chapter of Campaign) {
       const section = document.createElement("section");
@@ -484,7 +486,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function startBattle() {
     window.audioManager?.unlock();
-    window.audioManager?.resumeBgm();
+    window.audioManager?.playBgm();
     ui.title.textContent = "Level " + selectedStage.id + " · " + selectedStage.name;
     ui.battleBriefing.textContent = selectedStage.briefing;
     showScreen("battle");
@@ -501,7 +503,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ["knight", ui.summon],
     ["wizard", ui.summonWizard],
     ["kira", ui.summonKira],
-    ["james", ui.summonJames]
+    ["james", ui.summonJames],
+    ["lynce", ui.summonLynce]
   ];
 
   function summon(kind) {
@@ -536,6 +539,9 @@ document.addEventListener("DOMContentLoaded", () => {
   for (const [kind, button] of summonSlots) {
     button.addEventListener("click", () => summon(kind));
   }
+  ui.baseSkillButton.addEventListener("click", () => {
+    if (battle.activateBaseSkill()) renderer.syncHud(battle, ui);
+  });
 
   document.addEventListener("keydown", (event) => {
     if (screen !== "battle" || ui.resultDialog.open || ui.settingsDialog.open ||
@@ -551,7 +557,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.repeat) return;
     if (event.code === "KeyP") togglePause();
     if (battle.mode !== "playing" || event.target.closest("input:not([type='range']), textarea, select, [contenteditable]")) return;
-    const numberKey = /^(?:Digit|Numpad)([1-5])$/.exec(event.code);
+    if (event.code === "KeyQ") {
+      if (battle.activateBaseSkill()) {
+        event.preventDefault();
+        renderer.syncHud(battle, ui);
+      }
+      return;
+    }
+    const numberKey = /^(?:Digit|Numpad)([1-6])$/.exec(event.code);
     const slot = numberKey ? summonSlots[Number(numberKey[1]) - 1] :
       event.code === "KeyW" ? summonSlots[2] :
       event.code === "Space" && !event.target.closest("button, input") ? summonSlots[1] : null;
@@ -560,6 +573,20 @@ document.addEventListener("DOMContentLoaded", () => {
       summon(slot[0]);
     }
   });
+
+  const unlockScreenAudio = () => {
+    const audioManager = window.audioManager;
+    if (!audioManager) return;
+    if (screen !== "battle" && audioManager.lobbyBgm?.paused !== false) {
+      audioManager.unlock();
+    } else if (screen === "battle" && battle.mode === "playing" && audioManager.bgm?.paused !== false) {
+      audioManager.unlock();
+      audioManager.playBgm();
+    }
+  };
+  document.addEventListener("pointerdown", unlockScreenAudio);
+  document.addEventListener("keydown", unlockScreenAudio);
+  window.audioManager?.playLobbyBgm();
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && battle.mode === "playing") {

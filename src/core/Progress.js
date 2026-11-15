@@ -41,6 +41,13 @@ const Progress = {
         damage: { base: 7.5, scale: 1.1, step: 0.5 }
       }
     },
+    lynce: {
+      name: "Lynce · Marksman",
+      stats: {
+        hp: { base: 40, scale: 1.1, step: 2 },
+        damage: { base: 25, scale: 1.1, step: 1.5 }
+      }
+    },
     farm: {
       name: "Petani Gandum",
       maxRank: 3,
@@ -126,8 +133,9 @@ const Progress = {
     return history.slice(-this.historyLimit).filter(match =>
       ["knight", "wizard", "kira"].every(kind =>
         Number.isSafeInteger(match?.[kind]) && match[kind] >= 0
-      ) && (match.james === undefined || Number.isSafeInteger(match.james) && match.james >= 0)
-    ).map(({ knight, wizard, kira, james = 0 }) => ({ knight, wizard, kira, james }));
+      ) && (match.james === undefined || Number.isSafeInteger(match.james) && match.james >= 0) &&
+      (match.lynce === undefined || Number.isSafeInteger(match.lynce) && match.lynce >= 0)
+    ).map(({ knight, wizard, kira, james = 0, lynce = 0 }) => ({ knight, wizard, kira, james, lynce }));
   },
 
   recordMatch(profile, recruits) {

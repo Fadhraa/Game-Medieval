@@ -93,19 +93,30 @@ class Unit extends Entity {
     return restored;
   }
 
+  getSpeedMultipliers(battle) {
+    const buffed = battle?.hasBaseSpeedBuff?.(this);
+    return {
+      move:
+        (this.slowedUntil > (battle?.elapsed ?? 0) ? 0.65 : 1) *
+        (buffed ? Constants.BASE_SKILL.moveSpeedMultiplier : 1),
+      attack: buffed ? Constants.BASE_SKILL.attackSpeedMultiplier : 1
+    };
+  }
+
   update(delta, battle) {
     if (this.hp <= 0) {
       this.active = false;
       return;
     }
 
+    const { move, attack } = this.getSpeedMultipliers(battle);
     const { opponent, distance, base, baseDistance } = this.findOpponent(battle);
     const atBase = baseDistance <= this.reach;
     this.engaged = distance <= this.reach || atBase;
 
-    const remainingCooldown = this.cooldown > 0 ? this.cooldown - delta : 0;
+    const remainingCooldown = this.cooldown > 0 ? this.cooldown - delta * attack : 0;
     this.cooldown = Math.max(0, remainingCooldown);
-    this.swing += delta;
+    this.swing += delta * attack;
     this.flash = Math.max(0, this.flash - delta);
     this.moving = false;
     this.attackTarget = null;
@@ -122,7 +133,7 @@ class Unit extends Entity {
         this.swing = 0;
       }
     } else {
-      const travel = this.speed * delta * (this.slowedUntil > battle.elapsed ? 0.65 : 1);
+      const travel = this.speed * delta * move;
       this.moving = travel > 0;
       this.x += travel * this.side;
       this.walk += travel / this.speed;

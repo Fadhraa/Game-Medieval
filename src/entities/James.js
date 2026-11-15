@@ -48,8 +48,9 @@ class James extends Unit {
       return;
     }
 
-    this.swing += delta;
-    this.cooldown = Math.max(0, this.cooldown - delta);
+    const { attack } = this.getSpeedMultipliers(battle);
+    this.swing += delta * attack;
+    this.cooldown = Math.max(0, this.cooldown - delta * attack);
     this.flash = Math.max(0, this.flash - delta);
 
     if (!this.strike.hit && this.swing >= 3 * James.frameSeconds) {

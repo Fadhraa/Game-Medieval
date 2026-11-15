@@ -31,6 +31,16 @@ const Constants = {
   KIRA_COOLDOWN: 5,
   JAMES_COST: 4,
   JAMES_COOLDOWN: 4,
+  LYNCE_COST: 5,
+  LYNCE_COOLDOWN: 4.5,
+
+  BASE_SKILL: {
+    unlockChapterIndex: 1,
+    duration: 10,
+    cooldown: 60,
+    moveSpeedMultiplier: 1.4,
+    attackSpeedMultiplier: 1.3
+  },
 
   FIREBALL_SPEED: 220,
   FIREBALL_SPLASH: 5,
@@ -75,21 +85,39 @@ const Constants = {
       commanderImpact: "assets/sprites/projectiles/commander-impact.png",
       witcherEffects: "assets/sprites/projectiles/witcher-effects.png",
       kira: "assets/sprites/units/kira-chibi.png",
+      lynce: "assets/sprites/units/lynce.png",
+      lynceArrow: "assets/sprites/projectiles/lynce-arrow.png",
+      lynceSkillArrow: "assets/sprites/projectiles/lynce-skill-arrow.png",
       fireball: "assets/sprites/projectiles/fireball.png",
       goblinBolt: "assets/sprites/projectiles/goblin-bolt.png",
       lightning: "assets/sprites/projectiles/lightning_kira.png",
-      healingAura: "assets/sprites/projectiles/healing_kira.png"
+      healingAura: "assets/sprites/projectiles/healing_kira.png",
+      baseSpeedAura: "assets/sprites/effects/base-speed-aura.png"
     },
     sfx: {
       knight: "assets/sfx/knight-slash.wav",
       james: "assets/sfx/knight-slash.wav",
+      baseSkill: "assets/sfx/base-skill.wav",
+      lynceLaunch: "assets/sfx/lynce-launch.wav",
+      lynceHit: "assets/sfx/lynce-hit.wav",
+      lynceSkillLaunch: "assets/sfx/lynce-skill-launch.wav",
+      lynceSkillHit: "assets/sfx/lynce-skill-hit.wav",
       fireball: "assets/sfx/fireball-explode.wav",
       lightningLaunch: "assets/sfx/lightning-launch.wav",
       lightning: "assets/sfx/lightning-impact.wav",
-      heal: "assets/sfx/heal-receive.wav"
+      heal: "assets/sfx/heal-receive.wav",
+      commander: "assets/sfx/commander-attack.wav",
+      commanderPlant: "assets/sfx/commander-plant.wav",
+      commanderSweep: "assets/sfx/commander-sweep.wav",
+      witcherLaunch: "assets/sfx/witcher-launch.wav",
+      witcherImpact: "assets/sfx/witcher-impact.wav",
+      witcherHeal: "assets/sfx/witcher-heal.wav",
+      witcherSummonStart: "assets/sfx/witcher-summon-start.wav",
+      witcherSummonComplete: "assets/sfx/witcher-summon-complete.wav"
     },
     bgm: {
-      main: "assets/Back_sound/1.mp3"
+      main: "assets/Back_sound/1.mp3",
+      lobby: "assets/Back_sound/lobby.wav"
     }
   }
 };

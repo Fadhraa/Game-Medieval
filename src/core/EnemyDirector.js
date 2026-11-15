@@ -23,7 +23,7 @@ class EnemyDirector {
     const matches = history.map(match => ({
       ...match,
       knight: match.knight + (match.james ?? 0),
-      total: match.knight + match.wizard + match.kira + (match.james ?? 0)
+      total: match.knight + match.wizard + match.kira + (match.james ?? 0) + (match.lynce ?? 0)
     })).filter(match => match.total >= 3);
 
     if (matches.length < 2) return "balanced";

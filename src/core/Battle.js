@@ -11,20 +11,25 @@ class Battle {
     this.nextWizard = 0;
     this.nextKira = 0;
     this.nextJames = 0;
+    this.nextLynce = 0;
     this.knightsRecruited = 0;
-    this.recruits = { knight: 0, wizard: 0, kira: 0, james: 0 };
+    this.recruits = { knight: 0, wizard: 0, kira: 0, james: 0, lynce: 0 };
     this.goblinsSpawned = 0;
     this.archersSpawned = 0;
     this.minotaursSpawned = 0;
 
     this.heroHp = Constants.BASES.hero.hp;
     this.enemyHp = Constants.BASES.enemy.hp;
+    this.chapterIndex = 0;
+    this.baseSkillActiveUntil = 0;
+    this.baseSkillCooldownUntil = 0;
 
     this.units = [];
     this.kills = {};
     this.boss = null;
     this.projectiles = [];
     this.bursts = [];
+    this.arrowBursts = [];
     this.particles = [];
     this.healingAuras = [];
     this.lightningBursts = [];
@@ -44,20 +49,29 @@ class Battle {
     this.nextWizard = 0;
     this.nextKira = 0;
     this.nextJames = 0;
+    this.nextLynce = 0;
     this.knightsRecruited = 0;
-    this.recruits = { knight: 0, wizard: 0, kira: 0, james: 0 };
+    this.recruits = { knight: 0, wizard: 0, kira: 0, james: 0, lynce: 0 };
     this.goblinsSpawned = 0;
     this.archersSpawned = 0;
     this.minotaursSpawned = 0;
     this.heroHp = Constants.BASES.hero.hp;
     this.enemyHp = Constants.BASES.enemy.hp;
+    this.chapterIndex = 0;
+    this.baseSkillActiveUntil = 0;
+    this.baseSkillCooldownUntil = 0;
     this.units = [];
     this.kills = Object.fromEntries(Object.keys(Progress.killReward).map(kind => [kind, 0]));
     this.bossKind = stage.boss;
     this.boss = null;
-    this.arena = Campaign.find(chapter => chapter.stages.some(item => item.id === stage.id))?.arena;
+    const chapterIndex = Campaign.findIndex(chapter => chapter.stages.some(item => item.id === stage.id));
+    this.chapterIndex = chapterIndex >= 0 ? chapterIndex : 0;
+    this.arena = Campaign[this.chapterIndex]?.arena;
+    this.baseSkillActiveUntil = 0;
+    this.baseSkillCooldownUntil = 0;
     this.projectiles = [];
     this.bursts = [];
+    this.arrowBursts = [];
     this.particles = [];
     this.healingAuras = [];
     this.lightningBursts = [];
@@ -78,7 +92,7 @@ class Battle {
     let spawnIndex = 0;
     if (kind === "knight") spawnIndex = this.knightsRecruited++;
     else if (kind === "wizard") spawnIndex = this.knightsRecruited++;
-    else if (kind === "kira" || kind === "james") spawnIndex = this.knightsRecruited++;
+    else if (kind === "kira" || kind === "james" || kind === "lynce") spawnIndex = this.knightsRecruited++;
     else if (kind === "minotaur") spawnIndex = this.minotaursSpawned++;
     else if (kind === "goblin") spawnIndex = this.goblinsSpawned++;
     else if (kind === "archer_goblin") spawnIndex = this.archersSpawned++;
@@ -99,6 +113,9 @@ class Battle {
         break;
       case "james":
         unit = new James(depth, this.ranks?.james);
+        break;
+      case "lynce":
+        unit = new Lynce(depth, this.ranks?.lynce);
         break;
       case "goblin":
         unit = new Goblin(depth);
@@ -172,6 +189,11 @@ class Battle {
         nextKey = "nextJames";
         cooldown = Constants.JAMES_COOLDOWN;
         break;
+      case "lynce":
+        cost = Constants.LYNCE_COST;
+        nextKey = "nextLynce";
+        cooldown = Constants.LYNCE_COOLDOWN;
+        break;
       default:
         cost = Constants.KNIGHT_COST;
         nextKey = "nextSummon";
@@ -194,12 +216,57 @@ class Battle {
     return true;
   }
 
+  isBaseSkillUnlocked() {
+    return this.chapterIndex >= Constants.BASE_SKILL.unlockChapterIndex;
+  }
+
+  hasBaseSpeedBuff(unit) {
+    return Boolean(
+      unit &&
+      unit.side === 1 &&
+      unit.kind !== "farmer" &&
+      this.baseSkillActiveUntil > this.elapsed
+    );
+  }
+
+  activateBaseSkill() {
+    if (
+      this.mode !== "playing" ||
+      !this.isBaseSkillUnlocked() ||
+      this.elapsed < this.baseSkillActiveUntil ||
+      this.elapsed < this.baseSkillCooldownUntil
+    ) {
+      return false;
+    }
+
+    this.baseSkillActiveUntil = this.elapsed + Constants.BASE_SKILL.duration;
+    this.baseSkillCooldownUntil = this.baseSkillActiveUntil + Constants.BASE_SKILL.cooldown;
+
+    for (let i = 0; i < 14; i++) {
+      this.spawnParticle(
+        Constants.BASES.hero.x + (Math.random() - 0.5) * 32,
+        Constants.GROUND_Y - 10 - Math.random() * 44,
+        (Math.random() - 0.5) * 48,
+        -24 - Math.random() * 34,
+        0.45 + Math.random() * 0.25,
+        i % 2 ? "#7ae6ff" : "#3b9eff",
+        2
+      );
+    }
+    window.audioManager?.playHit("baseSkill");
+    return true;
+  }
+
   spawnProjectile(projectile) {
     this.projectiles.push(projectile);
   }
 
   spawnBurst(x, y) {
     this.bursts.push(new BurstEffect(x, y));
+  }
+
+  spawnArrowBurst(x, y, skill = false) {
+    this.arrowBursts.push(new LynceArrowBurst(x, y, skill));
   }
 
   spawnLightningBurst(x, y) {
@@ -269,7 +336,10 @@ class Battle {
 
     state.waiting.delete(knight);
     // Keep the slot for one attack interval so a stack cannot burst past the cap.
-    state.occupiedUntil.push(this.elapsed + knight.attackEvery);
+    const interval = this.hasBaseSpeedBuff(knight)
+      ? knight.attackEvery / Constants.BASE_SKILL.attackSpeedMultiplier
+      : knight.attackEvery;
+    state.occupiedUntil.push(this.elapsed + interval);
     return true;
   }
 
@@ -310,6 +380,9 @@ class Battle {
     for (const burst of this.bursts) {
       burst.update(delta);
     }
+    for (const burst of this.arrowBursts) {
+      burst.update(delta);
+    }
 
     // Update particles
     for (const particle of this.particles) {
@@ -336,6 +409,7 @@ class Battle {
     });
     this.projectiles = this.projectiles.filter((p) => p.active);
     this.bursts = this.bursts.filter((b) => b.active);
+    this.arrowBursts = this.arrowBursts.filter((b) => b.active);
     this.particles = this.particles.filter((p) => p.active);
     this.healingAuras = this.healingAuras.filter((a) => a.active);
     this.lightningBursts = this.lightningBursts.filter((lb) => lb.active);

@@ -71,6 +71,7 @@ class Witcher extends Healer {
       const circle = new WitcherCircle(minotaur.x, Constants.GROUND_Y + minotaur.depth, 2);
       this.cast = { kind: "summon", age: 0, minotaur, circle };
       this.summonCooldown = 16;
+      window.audioManager?.playHit("witcherSummonStart");
       return;
     }
 
@@ -109,11 +110,12 @@ class Witcher extends Healer {
     if (this.cast.kind === "summon") {
       this.guard = this.cast.minotaur;
       battle.units.push(this.guard);
+      window.audioManager?.playHit("witcherSummonComplete");
     } else if (this.cast.kind === "heal") {
       const ally = this.cast.ally;
       if (this.allyInReach(ally) && ally.receiveHealing(ally.maxHp * this.healPower, battle) > 0) {
         battle.witcherCircles.push(new WitcherCircle(ally.x, Constants.GROUND_Y + ally.depth, 1, ally));
-        window.audioManager?.playHit("heal");
+        window.audioManager?.playHit("witcherHeal");
       }
     } else {
       const { opponent, distance, baseDistance } = this.findOpponent(battle);
@@ -121,7 +123,7 @@ class Witcher extends Healer {
       const targetX = distance <= this.reach ? opponent.x : Constants.BASES.hero.x;
       const muzzleX = Math.min(this.x, Math.max(targetX, this.x - 20));
       battle.spawnProjectile(new WitcherBolt(muzzleX, feet - 23, this.damage));
-      window.audioManager?.playHit("lightningLaunch");
+      window.audioManager?.playHit("witcherLaunch");
     }
   }
 
