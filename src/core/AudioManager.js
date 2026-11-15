@@ -212,7 +212,10 @@ class AudioManager {
       witcherImpact: 0.36,
       witcherHeal: 0.48,
       witcherSummonStart: 0.65,
-      witcherSummonComplete: 0.55
+      witcherSummonComplete: 0.55,
+      rootGiantAttack1: 0.38,
+      rootGiantAttack2: 0.48,
+      rootGiantSkill: 0.85
     };
     const metal = kind === "knight" || kind === "james";
     const magic = kind === "wizard" || kind === "fireball";
@@ -335,6 +338,24 @@ class AudioManager {
           (time > 0.18 ? 0.26 * Math.sin(cycle * 1046.5 * (time - 0.18)) * Math.exp(-5.4 * (time - 0.18)) : 0);
         const breeze = 0.25 * (noise - lowNoise) * Math.exp(-4.5 * time);
         data[i] = edge * (chord + breeze);
+      } else if (kind === "rootGiantAttack1") {
+        const pitch = 140 - 65 * time;
+        phase += pitch / rate;
+        const wood = 0.42 * Math.sin(cycle * phase) * Math.exp(-14 * time);
+        const swipe = 0.48 * (noise - lowNoise) * Math.exp(-11 * time) * Math.min(1, time / 0.03);
+        data[i] = edge * (wood + swipe);
+      } else if (kind === "rootGiantAttack2") {
+        const pitch = 38 + 95 * Math.exp(-24 * time);
+        phase += pitch / rate;
+        const thud = 0.58 * Math.sin(cycle * phase) * Math.exp(-7.5 * time);
+        const crack = 0.32 * noise * Math.exp(-26 * time);
+        data[i] = edge * (thud + crack);
+      } else if (kind === "rootGiantSkill") {
+        const rumble = 0.48 * lowNoise * Math.min(1, time / 0.06) * Math.exp(-2.6 * time);
+        const yank = time >= 0.32
+          ? 0.32 * Math.sin(cycle * (85 + 160 * Math.min(1, (time - 0.32) / 0.3)) * time) * Math.exp(-5 * (time - 0.32))
+          : 0;
+        data[i] = edge * (rumble + yank);
       } else if (heal) {
         const pitch = 520 + 380 * (time / duration);
         phase += pitch / rate;

@@ -36,6 +36,7 @@ class Renderer {
       img.addEventListener("load", () => {
         if (path.includes("/background/")) this.backdropDirty = true;
         this.renderIcons();
+        this.onSpritesUpdated?.();
       });
       this.sprites[key] = img;
       img.src = path;
@@ -329,7 +330,7 @@ class Renderer {
       if (unit instanceof Witcher) {
         unit.drawSummon(ctx, this.ground, time, this.sprites.minotaur, witcherEffects);
       }
-      unit.draw(ctx, this.ground, time, sheet);
+      unit.draw(ctx, this.ground, time, sheet, this.sprites.rootGiantRoots);
       if (battle.hasBaseSpeedBuff(unit)) {
         this.drawBaseSpeedAura(ctx, unit, time, speedAuraSheet, "front");
       }
@@ -563,10 +564,26 @@ class Renderer {
         const sprite = this.sprites[art];
         ctx.clearRect(0, 0, item.width, item.height);
         if (sprite?.complete && sprite.naturalWidth > 0) {
+          if (art === "frostGolem") {
+            const drawH = item.height * 0.86;
+            const drawW = drawH * sprite.naturalWidth / sprite.naturalHeight;
+            ctx.save();
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(
+              sprite,
+              Math.round((item.width - drawW) / 2),
+              Math.round(item.height - drawH - 2),
+              Math.round(drawW),
+              Math.round(drawH)
+            );
+            ctx.restore();
+            continue;
+          }
           const cfg = this.getPortraitConfig(art);
+          const ratio = item.width / 24;
           ctx.save();
-          ctx.translate(Math.round(cfg.portraitX), 22);
-          ctx.scale(cfg.portraitScale, cfg.portraitScale);
+          ctx.translate(Math.round(cfg.portraitX * ratio), Math.round(22 * item.height / 24));
+          ctx.scale(cfg.portraitScale * ratio, cfg.portraitScale * ratio);
           ctx.imageSmoothingEnabled = false;
           ctx.drawImage(
             sprite,
@@ -592,8 +609,20 @@ class Renderer {
     if (kind === "goblin") {
       return { frameWidth: 48, frameHeight: 48, originX: 28, feetOrigin: 43, portraitX: 13, portraitScale: 0.72 };
     }
+    if (kind === "archer_goblin") {
+      return { frameWidth: 48, frameHeight: 48, originX: 24, feetOrigin: 43, portraitX: 13, portraitScale: 0.72 };
+    }
     if (kind === "minotaur") {
       return { frameWidth: 316, frameHeight: 311, originX: 148, feetOrigin: 298, portraitX: 18, portraitScale: 0.13 };
+    }
+    if (kind === "witcher") {
+      return { frameWidth: 64, frameHeight: 64, originX: 34, feetOrigin: 55, portraitX: 13, portraitScale: 0.56 };
+    }
+    if (kind === "commander") {
+      return { frameWidth: 128, frameHeight: 120, originX: 64, feetOrigin: 106, portraitX: 13, portraitScale: 0.30 };
+    }
+    if (kind === "rootGiant") {
+      return { frameWidth: 96, frameHeight: 88, originX: 48, feetOrigin: 82, portraitX: 13, portraitScale: 0.36 };
     }
     if (kind === "farmer") {
       return { frameWidth: 48, frameHeight: 48, originX: 24, feetOrigin: 42, portraitX: 12, portraitScale: 0.62 };
@@ -608,6 +637,137 @@ class Renderer {
       return { ...Lynce.spriteGeometry, portraitX: 11, portraitScale: 0.62 };
     }
     return { frameWidth: 48, frameHeight: 48, originX: 20, feetOrigin: 43, portraitX: 11, portraitScale: 0.66 };
+  }
+
+  ensureBackdropReady() {
+    if (this.backdropDirty) {
+      this.buildBackground(this.backdrop.getContext("2d"));
+      this.backdropDirty = false;
+    }
+    if (!this.previewBuffer) {
+      this.previewBuffer = document.createElement("canvas");
+    }
+  }
+
+  renderArenaSceneToBuffer(bufW, bufH, chapter, cropX) {
+    this.ensureBackdropReady();
+    this.previewBuffer.width = bufW;
+    this.previewBuffer.height = bufH;
+    const bctx = this.previewBuffer.getContext("2d");
+    bctx.imageSmoothingEnabled = false;
+    bctx.clearRect(0, 0, bufW, bufH);
+
+    const arena = chapter?.arena ? this.sprites[chapter.arena] : null;
+    if (!arena?.naturalWidth) {
+      bctx.drawImage(this.sky, -Math.round(cropX * 0.34), 0);
+      this.drawSkySprites(bctx, 0.5, cropX);
+    }
+
+    bctx.save();
+    bctx.translate(-Math.round(cropX), 0);
+    bctx.drawImage(arena?.naturalWidth ? arena : this.backdrop, 0, 0, Constants.WORLD_WIDTH, this.height);
+    this.drawCastle(bctx, 0.5);
+    bctx.save();
+    bctx.translate(Constants.WORLD_WIDTH - this.width, 0);
+    this.drawCamp(bctx, 0.5);
+    bctx.restore();
+    bctx.restore();
+    return bctx;
+  }
+
+  drawDioramaUnit(ctx, kind, x, groundY) {
+    const sprite = this.sprites[kind];
+    if (!sprite?.complete || !sprite.naturalWidth) return;
+
+    const specs = {
+      knight: { frameWidth: 48, frameHeight: 48, originX: 20, feetOrigin: 43, scale: 1 },
+      goblin: { frameWidth: 48, frameHeight: 48, originX: 28, feetOrigin: 43, scale: 1 },
+      archer_goblin: { frameWidth: 48, frameHeight: 48, originX: 24, feetOrigin: 43, scale: 0.85 },
+      minotaur: { frameWidth: 316, frameHeight: 311, originX: 148, feetOrigin: 298, scale: 0.19 },
+      witcher: { frameWidth: 64, frameHeight: 64, originX: 34, feetOrigin: 55, scale: 1.12 },
+      commander: { frameWidth: 128, frameHeight: 120, originX: 64, feetOrigin: 106, scale: 1 },
+      rootGiant: { frameWidth: 96, frameHeight: 88, originX: 48, feetOrigin: 82, scale: 1 }
+    };
+
+    ctx.fillStyle = "rgba(44, 34, 22, 0.28)";
+    ctx.fillRect(Math.round(x - 16), Math.round(groundY - 2), 32, 3);
+
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(groundY));
+    ctx.imageSmoothingEnabled = false;
+    if (kind === "frostGolem") {
+      const h = 82;
+      const w = Math.round(h * sprite.naturalWidth / sprite.naturalHeight);
+      ctx.drawImage(sprite, -Math.round(w / 2), -h, w, h);
+    } else {
+      const cfg = specs[kind] ?? specs.goblin;
+      ctx.scale(cfg.scale, cfg.scale);
+      ctx.drawImage(
+        sprite,
+        0,
+        0,
+        cfg.frameWidth,
+        cfg.frameHeight,
+        -cfg.originX,
+        -cfg.feetOrigin,
+        cfg.frameWidth,
+        cfg.frameHeight
+      );
+    }
+    ctx.restore();
+  }
+
+  drawStagePreview(canvas, chapter, stage) {
+    if (!canvas) return;
+    const cropX = Math.max(0, Math.min(Constants.WORLD_WIDTH - this.width, chapter?.cameraCropX ?? 220));
+    this.renderArenaSceneToBuffer(this.width, this.height, chapter, cropX);
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(this.previewBuffer, 0, 0, canvas.width, canvas.height);
+
+    // Subtle atmospheric vignette border inside the battlefield banner
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, "rgba(24, 18, 12, 0.14)");
+    grad.addColorStop(0.7, "rgba(24, 18, 12, 0)");
+    grad.addColorStop(1, "rgba(24, 18, 12, 0.42)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  drawChapterIllustration(canvas, chapter) {
+    if (!canvas) return;
+    const viewW = Math.round(this.height * canvas.width / canvas.height);
+    const maxCrop = Math.max(0, Constants.WORLD_WIDTH - viewW);
+    const cropX = Math.max(0, Math.min(maxCrop, chapter?.cameraCropX ?? 220));
+    const bctx = this.renderArenaSceneToBuffer(viewW, this.height, chapter, cropX);
+
+    const featured = chapter?.featuredUnits ?? ["goblin"];
+    this.drawDioramaUnit(bctx, "knight", Math.round(viewW * 0.25), this.ground + 3);
+    if (featured[0]) {
+      this.drawDioramaUnit(bctx, featured[0], Math.round(viewW * 0.64), this.ground + 2);
+    }
+    if (featured[1]) {
+      this.drawDioramaUnit(bctx, featured[1], Math.round(viewW * 0.80), this.ground + 5);
+    }
+
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(this.previewBuffer, 0, 0, canvas.width, canvas.height);
+
+    const vignette = ctx.createRadialGradient(
+      canvas.width / 2,
+      canvas.height / 2,
+      canvas.height * 0.3,
+      canvas.width / 2,
+      canvas.height / 2,
+      canvas.width * 0.72
+    );
+    vignette.addColorStop(0, "rgba(45, 29, 14, 0)");
+    vignette.addColorStop(1, "rgba(45, 29, 14, 0.26)");
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 }
 

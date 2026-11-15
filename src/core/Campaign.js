@@ -5,6 +5,10 @@
 const Campaign = [
   {
     name: "Ladang Perbatasan",
+    subtitle: "Garis Depan Kerajaan",
+    lore: "Asap membubung di ufuk timur. Kawanan Goblin mulai menjarah ladang gandum perbatasan—petani dan ksatria harus berdiri menjaga lumbung kerajaan.",
+    featuredUnits: ["goblin", "minotaur"],
+    cameraCropX: 120,
     stages: [
       {
         id: 1,
@@ -28,6 +32,10 @@ const Campaign = [
   },
   {
     name: "Benteng Goblin",
+    subtitle: "Barisan Pemanah & Penyihir",
+    lore: "Di balik pagar kayu runcing, Goblin Pemanah dan Witcher mulai merapal mantra gelap untuk memanggil Minotaur raksasa.",
+    featuredUnits: ["archer_goblin", "witcher"],
+    cameraCropX: 260,
     stages: [
       {
         id: 4,
@@ -51,6 +59,10 @@ const Campaign = [
   },
   {
     name: "Jalur Pegunungan",
+    subtitle: "Tebing Sempit Berbahaya",
+    lore: "Jalur menanjak menuju jantung wilayah musuh dijaga barisan Minotaur lapis baja dan hujan baut tanpa henti dari atas tebing.",
+    featuredUnits: ["minotaur", "archer_goblin"],
+    cameraCropX: 210,
     stages: [
       {
         id: 7,
@@ -74,6 +86,10 @@ const Campaign = [
   },
   {
     name: "Benteng Raja Goblin",
+    subtitle: "Tahta Panglima Mahkota Retak",
+    lore: "Gerbang terakhir markas besar Goblin. Panglima Mahkota Retak turun langsung ke medan tempur dengan perisai raksasa dan ayunan maut.",
+    featuredUnits: ["commander", "witcher"],
+    cameraCropX: 330,
     stages: [
       {
         id: 10,
@@ -98,6 +114,10 @@ const Campaign = [
   },
   {
     name: "Rawa Senja",
+    subtitle: "Hutan Akar Terkutuk",
+    lore: "Kabut beracun menyelimuti Rawa Senja. Dari balik lumpur purba, Raksasa Akar bangkit dan menarik pasukan yang lengah ke garis depan.",
+    featuredUnits: ["rootGiant", "witcher"],
+    cameraCropX: 290,
     arena: "swamp",
     stages: [
       {
@@ -115,7 +135,7 @@ const Campaign = [
       {
         id: 15,
         name: "Jantung Rawa",
-        briefing: "Raksasa Akar muncul saat HP markas mencapai 65%. Hantaman 180 damage mengincar area di depannya. Kalahkan bos dan hancurkan markas.",
+        briefing: "Raksasa Akar muncul saat HP markas mencapai 65%. Akarnya menarik pasukan hingga batas serang Wizard ke garis depan. Kalahkan bos dan hancurkan markas.",
         boss: "rootGiant",
         enemies: { first: 8, interval: 3.7, order: "MGAAMG" }
       }
@@ -123,6 +143,10 @@ const Campaign = [
   },
   {
     name: "Puncak Beku",
+    subtitle: "Benteng Salju Abadi",
+    lore: "Badai salju membekukan langkah pasukan di puncak tertinggi. Golem Es menjaga takhta beku dengan gelombang es yang melambatkan setiap serangan.",
+    featuredUnits: ["frostGolem", "minotaur"],
+    cameraCropX: 300,
     arena: "frost",
     stages: [
       {

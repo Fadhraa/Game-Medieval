@@ -105,6 +105,10 @@ class Witcher extends Healer {
     this.moving = distanceToWalk > 0;
   }
 
+  healAmount() {
+    return this.maxHp * this.healPower + 50;
+  }
+
   releaseSpell(battle) {
     const feet = Constants.GROUND_Y + this.depth;
     if (this.cast.kind === "summon") {
@@ -113,7 +117,7 @@ class Witcher extends Healer {
       window.audioManager?.playHit("witcherSummonComplete");
     } else if (this.cast.kind === "heal") {
       const ally = this.cast.ally;
-      if (this.allyInReach(ally) && ally.receiveHealing(ally.maxHp * this.healPower, battle) > 0) {
+      if (this.allyInReach(ally) && ally.receiveHealing(this.healAmount(), battle) > 0) {
         battle.witcherCircles.push(new WitcherCircle(ally.x, Constants.GROUND_Y + ally.depth, 1, ally));
         window.audioManager?.playHit("witcherHeal");
       }

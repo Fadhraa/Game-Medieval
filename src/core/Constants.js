@@ -92,7 +92,8 @@ const Constants = {
       goblinBolt: "assets/sprites/projectiles/goblin-bolt.png",
       lightning: "assets/sprites/projectiles/lightning_kira.png",
       healingAura: "assets/sprites/projectiles/healing_kira.png",
-      baseSpeedAura: "assets/sprites/effects/base-speed-aura.png"
+      baseSpeedAura: "assets/sprites/effects/base-speed-aura.png",
+      rootGiantRoots: "assets/sprites/projectiles/root-giant-roots.png"
     },
     sfx: {
       knight: "assets/sfx/knight-slash.wav",
@@ -113,7 +114,10 @@ const Constants = {
       witcherImpact: "assets/sfx/witcher-impact.wav",
       witcherHeal: "assets/sfx/witcher-heal.wav",
       witcherSummonStart: "assets/sfx/witcher-summon-start.wav",
-      witcherSummonComplete: "assets/sfx/witcher-summon-complete.wav"
+      witcherSummonComplete: "assets/sfx/witcher-summon-complete.wav",
+      rootGiantAttack1: "assets/sfx/root-giant-attack1.wav",
+      rootGiantAttack2: "assets/sfx/root-giant-attack2.wav",
+      rootGiantSkill: "assets/sfx/root-giant-skill.wav"
     },
     bgm: {
       main: "assets/Back_sound/1.mp3",
