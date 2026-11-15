@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
       "courtyardArt", "lobbyScreen", "lobbyTitle", "enterBattle", "enterBarracks",
       "campaignScreen", "campaignTitle", "leaveCampaign", "chapterList", "battleBriefing",
       "barracksScreen", "barracksTitle", "leaveBarracks", "upgradeCards", "upgradeStatus",
+      "heroInfoDialog", "heroInfoTitle", "heroInfoContext", "heroInfoStats", "heroInfoAbility",
       "resultDialog", "resultTitle", "resultDetails", "resultLobby", "resultBarracks", "resultProgress", "resultLevels", "resultNext", "resultRetry",
       "granaryScreen", "granaryTitle", "enterGranary", "leaveGranary", "granaryCards", "granaryStatus",
       "plotUpgrade", "plotCount", "plotRequirement", "buySecondPlot",
@@ -104,40 +105,143 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  const statLabels = {
-    hp: "HP maks.",
-    damage: "ATK",
-    splashDamage: "Damage sebaran",
-    breadPerDelivery: "Roti per setoran"
+  const heroCards = {
+    knight: { unit: Knight, cooldown: Constants.SUMMON_COOLDOWN, damageType: "Fisik", name: "Ksatria Pedang", role: "Fighter", summary: "Serangan cepat untuk menjaga garis depan." },
+    wizard: { unit: Wizard, cooldown: Constants.WIZARD_COOLDOWN, damageType: "Sihir", name: "Wizard Api", role: "Wizard", summary: "Fireball melukai beberapa musuh sekaligus." },
+    kira: { unit: Kira, cooldown: Constants.KIRA_COOLDOWN, damageType: "Sihir", name: "Kira", role: "Healer", summary: "Memulihkan rekan sesuai HP maks. Kira atau menyerang dengan petir." },
+    james: { unit: James, cooldown: Constants.JAMES_COOLDOWN, damageType: "Fisik", name: "James", role: "Tanker", summary: "Perisainya membuat musuh terkena stun." },
+    lynce: { unit: Lynce, cooldown: Constants.LYNCE_COOLDOWN, damageType: "Fisik", name: "Lynce", role: "Marksman", summary: "Tembakan ketiga menembus barisan musuh." }
   };
 
-  function statText(kind, rank) {
-    if (kind === "farm") {
-      const { breadPerDelivery, speed, harvestSeconds } = Progress.farmStats(rank);
-      const speedBonus = Math.round((speed / Constants.FARM.speed - 1) * 100);
-      const harvestBonus = Math.round((1 - harvestSeconds / Constants.FARM.harvestSeconds) * 100);
-      const stats = [breadPerDelivery + " roti per setoran"];
-      if (speedBonus) stats.push("Kecepatan jalan +" + speedBonus + "%");
-      if (harvestBonus) stats.push("Durasi panen −" + harvestBonus + "%");
-      return stats.join(" · ");
+  const statLabels = { hp: "HP maks.", damage: "ATK", splashDamage: "Sebaran", healPercent: "Pemulihan" };
+
+  function formatHeroStat(stat, value) {
+    const percent = stat === "healPercent";
+    return value.toLocaleString("id-ID", { maximumFractionDigits: percent ? 1 : 0 }) + (percent ? "%" : "");
+  }
+
+  const detailNumber = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 2 });
+
+  function openHeroInfo(kind) {
+    const hero = heroCards[kind];
+    const locked = !Progress.canRecruit(kind, profile.unlockedHeroes);
+    const rank = locked ? 0 : profile.ranks[kind];
+    const unit = new hero.unit(0, rank);
+    const number = value => detailNumber.format(value);
+    const rows = [
+      ["Biaya panggil", unit.cost + " roti"],
+      ["Jeda panggil", number(hero.cooldown) + " dtk"],
+      ["HP maksimum", kind === "james" ? formatHeroStat("hp", unit.maxHp) : number(unit.maxHp)],
+      ["ATK", kind === "james" ? formatHeroStat("damage", unit.damage) : number(unit.damage)],
+      ["Jenis damage", hero.damageType],
+      ["Jangkauan serang", number(unit.reach) + " px"],
+      ["Interval serangan dasar", number(unit.attackEvery) + " dtk"],
+      ["Kecepatan serang dasar", number(1 / unit.attackEvery) + " serangan/dtk"],
+      ["Kecepatan jalan", number(unit.speed) + " px/dtk"]
+    ];
+    let ability = hero.summary;
+    if (kind === "knight") {
+      ability = "Maksimal " + Constants.KNIGHTS_PER_TARGET + " Ksatria dapat menyerang target yang sama dalam satu interval.";
+    } else if (kind === "wizard") {
+      rows.push(["Damage sebaran", number(unit.splashDamage)], ["Radius sebaran", Constants.FIREBALL_RADIUS + " px"]);
+      ability = "Fireball memberi damage utama pada target pertama dan damage sebaran pada musuh lain di dekatnya.";
+    } else if (kind === "kira") {
+      rows.push(
+        ["Jangkauan heal", number(unit.healReach) + " px"],
+        ["Interval heal dasar", number(unit.healSpeed) + " dtk"],
+        ["Pemulihan per heal", number(unit.healAmount()) + " HP · " + number(unit.healPower * 100) + "% HP Kira"]
+      );
+      ability = "Memprioritaskan satu rekan terluka di depan. Kira menembakkan petir saat tidak perlu menyembuhkan.";
+    } else if (kind === "james") {
+      ability = "Setelah tiga serangan yang melukai musuh, serangan berikutnya memberi stun selama 1 detik.";
+    } else if (kind === "lynce") {
+      const first = number(Lynce.skillDamageScale * 100);
+      const falloff = number(Lynce.skillFalloffPerEnemy * 100);
+      const minimum = number(Lynce.skillMinDamageScale * 100);
+      ability = "Tembakan ketiga menembus barisan. Target pertama menerima " + first +
+        "% dari ATK. Damage turun " + falloff +
+        " poin persentase per target, dengan batas bawah " + minimum + "% dari ATK.";
     }
-    return Object.entries(Progress.stats(kind, rank)).map(([stat, value]) => {
-      const percent = stat === "healPercent";
-      const rounded = value.toLocaleString("id-ID", { maximumFractionDigits: percent ? 1 : 0 });
-      return percent ? "Pemulihan " + rounded + "% dari HP maks. Kira" : statLabels[stat] + " " + rounded;
-    }).join(" · ");
+
+    ui.heroInfoTitle.textContent = hero.name;
+    ui.heroInfoContext.textContent = hero.role + " · Level " + (rank + 1) + (locked ? " · Terkunci" : "");
+    ui.heroInfoStats.replaceChildren(...rows.map(([name, value]) => {
+      const row = document.createElement("div");
+      const term = document.createElement("dt");
+      const detail = document.createElement("dd");
+      term.textContent = name;
+      detail.textContent = value;
+      row.append(term, detail);
+      return row;
+    }));
+    ui.heroInfoAbility.textContent = ability;
+    ui.heroInfoDialog.showModal();
+  }
+
+  function refreshHeroCard(card, kind, rank) {
+    const locked = !Progress.canRecruit(kind, profile.unlockedHeroes);
+    const maxRank = Progress.maxRankFor(kind);
+    const max = rank === maxRank;
+    const cost = locked ? Progress.heroUnlockCosts[kind] : Progress.cost(rank);
+    card.classList.toggle("is-locked", locked);
+    card.querySelector(".hero-level").textContent = locked ? "Terkunci" : "Level " + (rank + 1) + " / " + (maxRank + 1);
+    const progress = card.querySelector("progress");
+    progress.hidden = locked;
+    progress.max = maxRank + 1;
+    progress.value = rank + 1;
+    const stats = Progress.stats(kind, locked ? 0 : rank);
+    const next = locked || max ? null : Progress.stats(kind, rank + 1);
+    card.querySelector(".hero-stat-heading").textContent = locked ? "Atribut level 1" : next ? "Atribut · Sekarang → Berikutnya" : "Atribut maksimum";
+    const statList = card.querySelector(".hero-stats");
+    const rows = Object.entries(stats).map(([stat, value]) => {
+      const row = document.createElement("div");
+      const label = document.createElement("dt");
+      const values = document.createElement("dd");
+      label.textContent = statLabels[stat];
+      values.textContent = formatHeroStat(stat, value);
+      if (next) {
+        const upgrade = document.createElement("span");
+        upgrade.textContent = " → " + formatHeroStat(stat, next[stat]);
+        values.append(upgrade);
+      }
+      row.append(label, values);
+      return row;
+    });
+    statList.replaceChildren(...rows);
+    const button = card.querySelector(".hero-button");
+    const action = locked ? "Buka hero" : max ? "Level maksimum" : "Upgrade";
+    button.querySelector(".hero-action").textContent = action;
+    const price = button.querySelector(".hero-price");
+    price.hidden = !locked && max;
+    price.textContent = Progress.formatCoins(cost) + " koin";
+    button.setAttribute("aria-label", action + " " + heroCards[kind].name + (price.hidden ? "" : " · " + price.textContent));
+    button.disabled = (!locked && max) || profile.coins < cost;
+  }
+
+  function farmStatText(rank) {
+    const { breadPerDelivery, speed, harvestSeconds } = Progress.farmStats(rank);
+    const speedBonus = Math.round((speed / Constants.FARM.speed - 1) * 100);
+    const harvestBonus = Math.round((1 - harvestSeconds / Constants.FARM.harvestSeconds) * 100);
+    const stats = [breadPerDelivery + " roti per setoran"];
+    if (speedBonus) stats.push("Kecepatan jalan +" + speedBonus + "%");
+    if (harvestBonus) stats.push("Durasi panen −" + harvestBonus + "%");
+    return stats.join(" · ");
   }
 
   function refreshUpgrades(container) {
     for (const card of container.querySelectorAll("[data-kind]")) {
       const kind = card.dataset.kind;
       const rank = profile.ranks[kind];
+      if (kind !== "farm") {
+        refreshHeroCard(card, kind, rank);
+        continue;
+      }
       const cost = Progress.cost(rank);
       const maxRank = Progress.maxRankFor(kind);
       const max = rank === maxRank;
       card.querySelector(".rank").textContent = "Level " + (rank + 1) + " / " + (maxRank + 1);
-      card.querySelector(".current-stat").textContent = statText(kind, rank);
-      card.querySelector(".next-stat").textContent = max ? "Level maksimum" : "Berikutnya: " + statText(kind, rank + 1);
+      card.querySelector(".current-stat").textContent = farmStatText(rank);
+      card.querySelector(".next-stat").textContent = max ? "Level maksimum" : "Berikutnya: " + farmStatText(rank + 1);
       const button = card.querySelector("button");
       button.disabled = max || profile.coins < cost;
       button.textContent = max ? "Maksimum" : "Upgrade · " + Progress.formatCoins(cost) + " koin";
@@ -161,18 +265,53 @@ document.addEventListener("DOMContentLoaded", () => {
     const card = document.createElement("article");
     card.className = "upgrade-card";
     card.dataset.kind = kind;
-    card.innerHTML = '<div class="upgrade-header"><canvas width="24" height="24" aria-hidden="true"></canvas><h2></h2></div><p class="rank"></p><p class="current-stat"></p><p class="next-stat"></p><button class="gold-button" type="button"></button>';
     const isFarm = kind === "farm";
+    const hero = heroCards[kind];
+    if (isFarm) {
+      card.innerHTML = '<div class="upgrade-header"><canvas width="24" height="24" aria-hidden="true"></canvas><h2></h2></div><p class="rank"></p><p class="current-stat"></p><p class="next-stat"></p><button class="gold-button" type="button"></button>';
+    } else {
+      card.classList.add("hero-card");
+      card.innerHTML = `
+        <div class="hero-portrait">
+          <span class="hero-level"></span>
+          <canvas width="144" height="144" aria-hidden="true"></canvas>
+        </div>
+        <div class="hero-card-body">
+          <p class="hero-role"></p>
+          <h2></h2>
+          <div class="hero-meta">
+            <span class="hero-bread"><canvas width="24" height="24" data-art="bread" aria-hidden="true"></canvas><span></span></span>
+            <button class="secondary hero-info-button" type="button" aria-haspopup="dialog">Info</button>
+          </div>
+          <progress aria-label="Level hero"></progress>
+          <p class="hero-summary"></p>
+          <p class="hero-stat-heading"></p>
+          <dl class="hero-stats"></dl>
+          <button class="gold-button hero-button" type="button">
+            <span class="hero-action"></span><span class="hero-price"></span>
+          </button>
+        </div>`;
+      card.querySelector(".hero-role").textContent = hero.role;
+      card.querySelector(".hero-summary").textContent = hero.summary;
+      card.querySelector(".hero-bread span").textContent = "Panggil · " + new hero.unit().cost + " roti";
+      const info = card.querySelector(".hero-info-button");
+      info.setAttribute("aria-label", "Info " + hero.name);
+      info.addEventListener("click", () => openHeroInfo(kind));
+    }
     const menu = isFarm ? "granary" : "barracks";
     const container = isFarm ? ui.granaryCards : ui.upgradeCards;
     const status = isFarm ? ui.granaryStatus : ui.upgradeStatus;
-    card.querySelector("canvas").dataset.art = isFarm ? "farmer" : kind;
-    card.querySelector("h2").textContent = upgrade.name;
-    card.querySelector("button").addEventListener("click", () => {
-      if (screen !== menu || !Progress.buy(profile, kind)) return;
+    const art = kind === "kira" ? "kiraPortrait" : kind;
+    card.querySelector("canvas").dataset.art = isFarm ? "farmer" : art;
+    card.querySelector("h2").textContent = hero?.name ?? upgrade.name;
+    card.querySelector(".gold-button").addEventListener("click", () => {
+      if (screen !== menu) return;
+      const unlock = !isFarm && !Progress.canRecruit(kind, profile.unlockedHeroes);
+      if (!(unlock ? Progress.buyHero(profile, kind) : Progress.buy(profile, kind))) return;
       saveProfile();
       refreshUpgrades(container);
-      status.textContent = upgrade.name + " naik ke level " + (profile.ranks[kind] + 1) + ".";
+      status.textContent = unlock ? upgrade.name + " siap dipanggil di medan pertempuran." :
+        upgrade.name + " naik ke level " + (profile.ranks[kind] + 1) + ".";
     });
     if (isFarm) ui.plotUpgrade.before(card);
     else container.append(card);
@@ -195,6 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
       goblin: { key: "goblin", name: "Goblin", role: "Penyerbu Cepat", isBoss: false },
       archer_goblin: { key: "archer_goblin", name: "Goblin Pemanah", role: "Jarak Jauh", isBoss: false },
       minotaur: { key: "minotaur", name: "Minotaur", role: "Tank Berat", isBoss: false },
+      hollowMask: { key: "hollowMask", name: "Topeng Hampa", role: "Assassin Elite", isBoss: false },
       witcher: { key: "witcher", name: "Witcher", role: "Heal & Summon", isBoss: false },
       commander: { key: "commander", name: "Panglima Mahkota Retak", role: "Bos Chapter 4", isBoss: true },
       rootGiant: { key: "rootGiant", name: "Raksasa Akar", role: "Bos Chapter 5", isBoss: true },
@@ -207,6 +347,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (stage?.enemies?.witcherFirst !== undefined || (stage?.id ?? 0) >= 6) {
       list.push(catalog.witcher);
     }
+    if (stage?.enemies?.hollowMaskFirst !== undefined) list.push(catalog.hollowMask);
     if (stage?.boss && catalog[stage.boss]) {
       list.push(catalog[stage.boss]);
     }
@@ -256,6 +397,9 @@ document.addEventListener("DOMContentLoaded", () => {
     statusEl.className = "sidebar-stage-status " + (cleared ? "is-cleared" : unlocked ? "is-unlocked" : "is-locked");
     sidebar.querySelector(".sidebar-stage-title").textContent = stage.name;
     sidebar.querySelector(".sidebar-briefing").textContent = stage.briefing;
+    sidebar.querySelector(".sidebar-reward").textContent =
+      (cleared ? "Hadiah menang ulang · " : "Hadiah menang pertama · ") +
+      Progress.formatCoins(Progress.victoryCoins(stage, !cleared)) + " koin";
 
     const monsterGrid = sidebar.querySelector(".monster-list");
     monsterGrid.replaceChildren();
@@ -479,7 +623,7 @@ document.addEventListener("DOMContentLoaded", () => {
       '<div class="sidebar-body">' +
       '<p class="sidebar-stage-status"></p>' +
       '<h3 class="sidebar-stage-title"></h3>' +
-      '<p class="sidebar-briefing"></p>' +
+      '<p class="sidebar-briefing"></p><p class="sidebar-reward"></p>' +
       '<div class="sidebar-monsters">' +
       "<h4>Monster yang Muncul</h4>" +
       '<div class="monster-list"></div>' +
@@ -522,9 +666,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function finishBattle() {
     const mode = battle.mode;
-    const reward = Progress.reward(mode, battle.kills);
     const victory = mode === "won";
     const firstClear = victory && selectedStage.id === profile.clearedThrough + 1;
+    const reward = Progress.reward(mode, battle.kills, selectedStage, firstClear);
     const unlockedStage = victory ? Progress.clearStage(profile, selectedStage) : null;
     profile.coins += reward;
     Progress.recordMatch(profile, battle.recruits);
@@ -539,7 +683,8 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.resultNext.hidden = !victory || !next || !Progress.isUnlocked(profile, next);
     ui.resultRetry.hidden = victory;
     const rows = [
-      ["Hadiah kemenangan", victory ? Progress.victoryReward : 0],
+      [firstClear ? "Hadiah menang pertama" : victory ? "Hadiah menang ulang" : "Hadiah kemenangan",
+        victory ? Progress.victoryCoins(selectedStage, firstClear) : 0],
       [battle.kills.goblin + " Goblin dikalahkan", Progress.coinsForKills("goblin", battle.kills.goblin)],
       [battle.kills.minotaur + " Minotaur dikalahkan", Progress.coinsForKills("minotaur", battle.kills.minotaur)],
       ["Total diterima", reward]
@@ -551,6 +696,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (battle.kills.witcher > 0) {
       const count = battle.kills.witcher;
       rows.splice(-1, 0, [count + " Witcher dikalahkan", Progress.coinsForKills("witcher", count)]);
+    }
+    if (battle.kills.hollowMask > 0) {
+      const count = battle.kills.hollowMask;
+      rows.splice(-1, 0, [count + " Topeng Hampa dikalahkan", Progress.coinsForKills("hollowMask", count)]);
     }
     if (battle.boss && battle.kills[battle.boss.kind] > 0) {
       rows.splice(-1, 0, [battle.boss.name + " dikalahkan", Progress.coinsForKills(battle.boss.kind, 1)]);
@@ -673,11 +822,17 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   ui.cancelReset.addEventListener("click", () => ui.resetDialog.close());
   ui.confirmReset.addEventListener("click", () => {
-    Progress.resetUpgrades(profile);
-    saveProfile();
+    profile = Progress.normalize();
+    selectedStage = campaignStages[0];
+    activeChapterIndex = 0;
+    activeSidebarStage = null;
+    const saved = saveProfile();
     syncCoins();
-    ui.progressStatus.textContent = "Karakter dan Lumbung kembali ke level 1. Ladang kembali menjadi 1 petak dan saldo menjadi 0 koin.";
+    ui.progressStatus.textContent = saved
+      ? "Progres direset. Chapter 1, Level 1 siap dimainkan dengan Petani dan Ksatria."
+      : "Progres direset untuk sesi ini. Browser tidak dapat menyimpannya.";
     ui.resetDialog.close();
+    ui.resetProgress.focus();
   });
   ui.leaveBattle.addEventListener("click", openCampaign);
   syncCoins();
@@ -716,13 +871,13 @@ document.addEventListener("DOMContentLoaded", () => {
       ? Math.min(Constants.WORLD_WIDTH, Math.max(baseWidth,
         Math.round(clientWidth * Constants.CANVAS_HEIGHT / clientHeight)))
       : baseWidth;
-    if (ui.scene.width === width) return;
+    if (renderer.viewWidth === width) return;
 
     const nextMax = Constants.WORLD_WIDTH - width;
     // Keep the existing camera focus, including a view pinned to either base.
     const nextX = cameraX === 0 ? 0 : cameraX === maxCameraX ? nextMax :
-      cameraX + (ui.scene.width - width) / 2;
-    ui.scene.width = width;
+      cameraX + (renderer.viewWidth - width) / 2;
+    renderer.resizeView(width);
     maxCameraX = nextMax;
     ui.cameraPosition.max = nextMax;
     ui.cameraPosition.disabled = nextMax === 0;
@@ -771,8 +926,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function getSceneWorldPoint(clientX, clientY) {
     const rect = ui.scene.getBoundingClientRect();
-    const canvasX = ((clientX - rect.left) / rect.width) * ui.scene.width;
-    const canvasY = ((clientY - rect.top) / rect.height) * ui.scene.height;
+    const scale = Math.min(rect.width / renderer.viewWidth, rect.height / renderer.height);
+    const insetX = (rect.width - renderer.viewWidth * scale) / 2;
+    const insetY = (rect.height - renderer.height * scale) / 2;
+    const canvasX = (clientX - rect.left - insetX) / scale;
+    const canvasY = (clientY - rect.top - insetY) / scale;
     return { x: canvasX + cameraX, y: canvasY };
   }
 
@@ -895,7 +1053,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
     } else {
       const { width, height } = ui.scene.getBoundingClientRect();
-      const scale = Math.max(ui.scene.width / width, ui.scene.height / height);
+      const scale = Math.max(renderer.viewWidth / width, renderer.height / height);
       moveCamera(drag.cameraX + (drag.startX - event.clientX) * scale);
     }
   });
@@ -1036,7 +1194,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ui.title.textContent = "Level " + selectedStage.id + " · " + selectedStage.name;
     ui.battleBriefing.textContent = selectedStage.briefing;
     showScreen("battle");
-    battle.start(profile.ranks, profile.matchHistory, selectedStage, profile.hasSecondPlot);
+    battle.start(profile.ranks, profile.matchHistory, selectedStage, profile.hasSecondPlot, profile.unlockedHeroes);
     moveCamera(0);
     lastFrame = performance.now();
     renderer.syncHud(battle, ui, battleUiState);
@@ -1205,8 +1363,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     } else if (screen === "lobby") {
       renderer.render(battle, now / 1000, 0);
-      ui.courtyardArt.getContext("2d").drawImage(ui.scene, 0, 0, Constants.CANVAS_WIDTH,
-        Constants.CANVAS_HEIGHT, 0, 0, Constants.CANVAS_WIDTH, Constants.CANVAS_HEIGHT);
+      ui.courtyardArt.getContext("2d").drawImage(ui.scene, 0, 0,
+        Constants.CANVAS_WIDTH * renderer.pixelScale, Constants.CANVAS_HEIGHT * renderer.pixelScale,
+        0, 0, Constants.CANVAS_WIDTH, Constants.CANVAS_HEIGHT);
     }
 
     requestAnimationFrame(frame);

@@ -61,6 +61,7 @@ class James extends Unit {
         super.performAttack(opponent, null, battle);
         if (this.strike.shieldBash) {
           this.hits = 0;
+          battle.spawnShieldBashImpact(opponent.x - 3, Constants.GROUND_Y + opponent.depth - 17);
           if (opponent.hp > 0) {
             opponent.stunnedUntil = Math.max(opponent.stunnedUntil, battle.elapsed + 1);
             opponent.moving = false;

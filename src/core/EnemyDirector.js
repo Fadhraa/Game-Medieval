@@ -16,6 +16,7 @@ class EnemyDirector {
     this.interval = interval;
     this.order = order;
     this.index = 0;
+    this.nextHollowMask = stage.enemies.hollowMaskFirst ?? Infinity;
     this.nextWitcher = stage.enemies.witcherFirst ?? (stage.id >= 6 ? 24 : Infinity);
   }
 
@@ -55,6 +56,11 @@ class EnemyDirector {
     if (battle.elapsed >= this.nextWitcher && !battle.activeWitcher) {
       battle.spawnUnit("witcher");
       this.nextWitcher = battle.elapsed + 40;
+    }
+    if (battle.elapsed >= this.nextHollowMask &&
+        !battle.units.some(unit => unit.kind === "hollowMask" && unit.hp > 0)) {
+      battle.spawnUnit("hollowMask");
+      this.nextHollowMask = battle.elapsed + HollowMask.spawnInterval;
     }
     if (battle.elapsed < this.nextSpawn) return;
 

@@ -12,18 +12,21 @@ const Campaign = [
     stages: [
       {
         id: 1,
+        victoryCoins: 60,
         name: "Panen Pertama",
         briefing: "Panggil petani dan gunakan hasil panen untuk menahan Goblin yang datang satu per satu.",
         enemies: { first: 12, interval: 18, order: "G" }
       },
       {
         id: 2,
+        victoryCoins: 70,
         name: "Penyerbuan Ladang",
         briefing: "Goblin tiba lebih rapat. Jaga petani agar pasokan roti terus mengalir.",
         enemies: { first: 11, interval: 11, order: "G" }
       },
       {
         id: 3,
+        victoryCoins: 80,
         name: "Penjaga Gerbang",
         briefing: "Minotaur sesekali menyusul Goblin. Siapkan pasukan jarak jauh untuk menghadapinya.",
         enemies: { first: 10, interval: 10, order: "GGGM" }
@@ -39,18 +42,21 @@ const Campaign = [
     stages: [
       {
         id: 4,
+        victoryCoins: 80,
         name: "Serbuan Bergilir",
         briefing: "Pemanah muncul di sela pasukan Goblin. Jaga barisan depan agar pasukan pendukungmu aman.",
         enemies: { first: 9, interval: 6.4, order: "GGGGA" }
       },
       {
         id: 5,
+        victoryCoins: 90,
         name: "Barisan Berat",
         briefing: "Minotaur tiba lebih dulu. Pertahankan Ksatria di depan Wizard untuk menghadapi pemanah yang menyusul.",
         enemies: { first: 9, interval: 5.7, order: "MGGAGGAG" }
       },
       {
         id: 6,
+        victoryCoins: 100,
         name: "Pengepungan",
         briefing: "Witcher berlindung di belakang monster. Tembus barisan depan sebelum ia memanggil Minotaur yang lebih kuat.",
         enemies: { first: 8, interval: 4.8, order: "MGAMGAG" }
@@ -66,18 +72,21 @@ const Campaign = [
     stages: [
       {
         id: 7,
+        victoryCoins: 100,
         name: "Pos Tebing",
         briefing: "Pemanah lebih sering muncul. Lindungi pasukan jarak jauh dengan barisan depan.",
         enemies: { first: 8, interval: 4.5, order: "MGAGAGG" }
       },
       {
         id: 8,
+        victoryCoins: 110,
         name: "Dua Barisan",
         briefing: "Minotaur dan Pemanah bergantian menekan. Simpan roti untuk mengisi lagi barisan depan.",
         enemies: { first: 8, interval: 4.2, order: "MGAGMGA" }
       },
       {
         id: 9,
+        victoryCoins: 120,
         name: "Gerbang Batu",
         briefing: "Minotaur kerap muncul berurutan, lalu disusul Pemanah.",
         enemies: { first: 8, interval: 3.9, order: "MMGAGAMGA" }
@@ -93,18 +102,21 @@ const Campaign = [
     stages: [
       {
         id: 10,
+        victoryCoins: 120,
         name: "Hujan Baut",
         briefing: "Pemanah datang dengan jeda pendek dan Witcher muncul di belakang pasukan. Gunakan tombol Witcher untuk menemukannya.",
         enemies: { first: 8, interval: 3.6, order: "MGAGAAMG" }
       },
       {
         id: 11,
+        victoryCoins: 130,
         name: "Garda Istana",
         briefing: "Barisan Minotaur lebih rapat dan terus didukung Pemanah. Jaga pasokan roti untuk bertahan.",
         enemies: { first: 8, interval: 3.3, order: "MMAGAMG" }
       },
       {
         id: 12,
+        victoryCoins: 150,
         name: "Benteng Terakhir",
         boss: "commander",
         briefing: "Panglima Mahkota Retak muncul saat HP markas turun ke 60%. Kalahkan Panglima dan hancurkan markas untuk menang.",
@@ -122,18 +134,21 @@ const Campaign = [
     stages: [
       {
         id: 13,
+        victoryCoins: 135,
         name: "Jalur Rawa",
         briefing: "Goblin Pemanah berlindung di balik Minotaur. Jaga barisan depan agar Wizard bisa menyerang dari jauh.",
         enemies: { first: 9, interval: 4.3, order: "GMAGA" }
       },
       {
         id: 14,
+        victoryCoins: 145,
         name: "Kepung Akar",
-        briefing: "Witcher datang lebih awal dan memanggil Minotaur. Tembus pelindungnya sebelum rapalan selesai.",
-        enemies: { first: 8, interval: 3.9, order: "MGAMAGA", witcherFirst: 18 }
+        briefing: "Witcher datang lebih awal. Jika portal Topeng Hampa muncul, lindungi hero jarak jauh dari sergapan belakang.",
+        enemies: { first: 8, interval: 3.9, order: "MGAMAGA", witcherFirst: 18, hollowMaskFirst: 48 }
       },
       {
         id: 15,
+        victoryCoins: 165,
         name: "Jantung Rawa",
         briefing: "Raksasa Akar muncul saat HP markas mencapai 65%. Akarnya menarik pasukan hingga batas serang Wizard ke garis depan. Kalahkan bos dan hancurkan markas.",
         boss: "rootGiant",
@@ -151,22 +166,25 @@ const Campaign = [
     stages: [
       {
         id: 16,
+        victoryCoins: 150,
         name: "Jalur Salju",
-        briefing: "Pemanah datang beruntun. Lindungi pasukan pendukung dengan James dan Ksatria.",
-        enemies: { first: 8, interval: 4.1, order: "MAAGAM" }
+        briefing: "Pemanah datang beruntun dan Topeng Hampa memburu hero jarak jauh. Jaga bagian belakang pasukan.",
+        enemies: { first: 8, interval: 4.1, order: "MAAGAM", hollowMaskFirst: 42 }
       },
       {
         id: 17,
+        victoryCoins: 165,
         name: "Gerbang Es",
         briefing: "Minotaur dan Witcher menekan barisan depan lebih cepat. Simpan roti untuk mengganti pasukan yang gugur.",
-        enemies: { first: 7, interval: 3.6, order: "MMAGAAG", witcherFirst: 16 }
+        enemies: { first: 7, interval: 3.6, order: "MMAGAAG", witcherFirst: 16, hollowMaskFirst: 38 }
       },
       {
         id: 18,
+        victoryCoins: 185,
         name: "Takhta Es",
-        briefing: "Golem Es muncul saat HP markas mencapai 70%. Gelombang bekunya melukai dan memperlambat gerak hero. Kalahkan bos dan hancurkan markas.",
+        briefing: "Golem Es muncul saat HP markas mencapai 70%. Pukulan memberi 1 Frost, gelombang es memberi 2. Pada 3 Frost, hero menerima 200 damage dan membeku 1,5 detik. Kalahkan bos dan hancurkan markas.",
         boss: "frostGolem",
-        enemies: { first: 7, interval: 3.4, order: "MAMAGA", witcherFirst: 20 }
+        enemies: { first: 7, interval: 3.4, order: "MAMAGA", witcherFirst: 20, hollowMaskFirst: 52 }
       }
     ]
   }

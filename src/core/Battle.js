@@ -3,6 +3,7 @@
 class Battle {
   constructor(mode = "ready") {
     this.mode = mode;
+    this.unlockedHeroes = {};
     this.elapsed = 0;
 
     this.bread = 4;
@@ -38,10 +39,12 @@ class Battle {
     this.lightningBursts = [];
     this.witcherCircles = [];
     this.combatNumbers = [];
+    this.frostPrisons = [];
     this.knightAttackQueues = new Map();
   }
 
-  start(ranks = {}, matchHistory = [], stage = campaignStages[0], hasSecondPlot = false) {
+  start(ranks = {}, matchHistory = [], stage = campaignStages[0], hasSecondPlot = false, unlockedHeroes = {}) {
+    this.unlockedHeroes = { ...unlockedHeroes };
     this.enemyDirector = new EnemyDirector(stage, matchHistory);
     this.ranks = { ...ranks };
     this.mode = "playing";
@@ -83,6 +86,7 @@ class Battle {
     this.lightningBursts = [];
     this.witcherCircles = [];
     this.combatNumbers = [];
+    this.frostPrisons = [];
     this.knightAttackQueues.clear();
   }
 
@@ -132,6 +136,9 @@ class Battle {
       case "minotaur":
         unit = new Minotaur(depth, empowered);
         break;
+      case "hollowMask":
+        unit = new HollowMask(depth);
+        break;
       case "witcher":
         unit = new Witcher(depth);
         break;
@@ -169,6 +176,7 @@ class Battle {
   }
 
   recruit(kind = "knight") {
+    if (!Progress.canRecruit(kind, this.unlockedHeroes)) return false;
     if (kind === "farmer") {
       const plotIndex = this.openFarmPlot;
       if (plotIndex === -1) return false;
@@ -360,6 +368,10 @@ class Battle {
     this.bursts.push(new BurstEffect(x, y));
   }
 
+  spawnShieldBashImpact(x, y) {
+    this.bursts.push(new ShieldBashImpact(x, y));
+  }
+
   spawnArrowBurst(x, y, skill = false) {
     this.arrowBursts.push(new LynceArrowBurst(x, y, skill));
   }
@@ -453,7 +465,7 @@ class Battle {
 
     // Update units
     for (const unit of this.units) {
-      if (unit.hp > 0 && !(unit.stunnedUntil > this.elapsed)) unit.update(delta, this);
+      if (unit.hp > 0 && !(unit.stunnedUntil > this.elapsed) && !(unit.frozenUntil > this.elapsed)) unit.update(delta, this);
     }
 
     for (const [target, state] of this.knightAttackQueues) {
@@ -512,6 +524,7 @@ class Battle {
     this.lightningBursts = this.lightningBursts.filter((lb) => lb.active);
     this.witcherCircles = this.witcherCircles.filter(circle => circle.active);
     this.combatNumbers = this.combatNumbers.filter(number => number.active);
+    this.frostPrisons = this.frostPrisons.filter(prison => prison.endsAt > this.elapsed);
 
     // Win/Loss conditions
     const objectivesCleared = !this.enemyHp &&

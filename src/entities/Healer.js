@@ -54,7 +54,7 @@ class Healer extends Unit {
    * and plays the healing audio effect.
    */
   performHeal(target, battle) {
-    if (!target || !target.receiveHealing(this.healAmount(target), battle)) return;
+    if (!target || !target.receiveHealing(this.healAmount(target), battle)) return false;
 
     // Spawn green/cyan healing aura under the target's feet
     const targetFeet = Constants.GROUND_Y + (target.depth ?? 0);
@@ -73,6 +73,7 @@ class Healer extends Unit {
         1
       );
     }
+    return true;
   }
 
   update(delta, battle) {

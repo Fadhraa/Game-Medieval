@@ -5,8 +5,8 @@ const Progress = {
   fileVersion: 1,
   maxFileBytes: 16384,
   storageKey: "roti-benteng-progress-v1",
-  victoryReward: 50,
-  killReward: { goblin: 1, minotaur: 5, archer_goblin: 1, witcher: 10, commander: 50, rootGiant: 70, frostGolem: 90 },
+  heroUnlockCosts: Object.freeze({ james: 50, lynce: 70, wizard: 90, kira: 120 }),
+  killReward: { goblin: 1, minotaur: 5, archer_goblin: 1, witcher: 10, hollowMask: 10, commander: 50, rootGiant: 70, frostGolem: 90 },
   maxRank: 7,
   secondPlotCost: 80,
   historyLimit: 5,
@@ -88,12 +88,20 @@ const Progress = {
     if (data.version !== this.fileVersion) throw new Error("Versi file progres ini belum didukung.");
 
     const profile = data.profile;
+    const heroes = profile?.unlockedHeroes;
     const integer = (value, max = Number.MAX_SAFE_INTEGER) =>
       Number.isSafeInteger(value) && value >= 0 && value <= max;
     if (!integer(profile?.coins) || !integer(profile.clearedThrough, campaignStages.length) ||
         typeof profile.hasSecondPlot !== "boolean" ||
         (profile.hasSecondPlot && !this.canUnlockSecondPlot(profile)) ||
-        !Object.keys(this.upgrades).every(kind => integer(profile.ranks?.[kind], this.maxRankFor(kind))) ||
+        !Object.keys(this.upgrades).every(kind => {
+          const rank = profile.ranks?.[kind];
+          const legacyOmission = heroes === undefined && kind === "lynce" && rank === undefined;
+          return legacyOmission || integer(rank, this.maxRankFor(kind));
+        }) ||
+        (heroes !== undefined && (!heroes || typeof heroes !== "object" || Array.isArray(heroes) ||
+          !Object.entries(heroes).every(([kind, owned]) =>
+            Object.hasOwn(this.heroUnlockCosts, kind) && typeof owned === "boolean"))) ||
         !Array.isArray(profile.matchHistory) || profile.matchHistory.length > this.historyLimit ||
         this.readMatchHistory(profile.matchHistory).length !== profile.matchHistory.length) {
       throw new Error("Isi file progres tidak valid.");
@@ -107,6 +115,14 @@ const Progress = {
       const rank = data?.ranks?.[kind];
       ranks[kind] = Number.isInteger(rank) && rank >= 0 && rank <= this.maxRankFor(kind) ? rank : 0;
     }
+    const matchHistory = this.readMatchHistory(data?.matchHistory);
+    const unlockedHeroes = {};
+    for (const kind of Object.keys(this.heroUnlockCosts)) {
+      const unlocked = data?.unlockedHeroes === undefined
+        ? ranks[kind] > 0 || matchHistory.some(match => match[kind] > 0)
+        : data.unlockedHeroes?.[kind] === true;
+      if (unlocked) unlockedHeroes[kind] = true;
+    }
     const coins = data?.coins;
     const clearedThrough = data?.clearedThrough;
     return {
@@ -115,7 +131,8 @@ const Progress = {
       hasSecondPlot: data?.hasSecondPlot === true,
       clearedThrough: Number.isSafeInteger(clearedThrough)
         ? Math.min(campaignStages.length, Math.max(0, clearedThrough)) : 0,
-      matchHistory: this.readMatchHistory(data?.matchHistory)
+      unlockedHeroes,
+      matchHistory
     };
   },
 
@@ -140,12 +157,6 @@ const Progress = {
 
   recordMatch(profile, recruits) {
     profile.matchHistory = this.readMatchHistory([...profile.matchHistory, recruits]);
-  },
-
-  resetUpgrades(profile) {
-    profile.coins = 0;
-    profile.hasSecondPlot = false;
-    for (const kind of Object.keys(this.upgrades)) profile.ranks[kind] = 0;
   },
 
   cost(rank) {
@@ -182,8 +193,23 @@ const Progress = {
     return true;
   },
 
+  canRecruit(kind, unlockedHeroes) {
+    return kind === "farmer" || kind === "knight" ||
+      (Object.hasOwn(this.heroUnlockCosts, kind) && unlockedHeroes?.[kind] === true);
+  },
+
+  buyHero(profile, kind) {
+    const cost = this.heroUnlockCosts[kind];
+    if (!Object.hasOwn(this.heroUnlockCosts, kind) ||
+        this.canRecruit(kind, profile.unlockedHeroes) || profile.coins < cost) return false;
+    profile.coins -= cost;
+    profile.unlockedHeroes[kind] = true;
+    return true;
+  },
+
   buy(profile, kind) {
-    if (!Object.hasOwn(this.upgrades, kind)) return false;
+    if (!Object.hasOwn(this.upgrades, kind) ||
+        (kind !== "farm" && !this.canRecruit(kind, profile.unlockedHeroes))) return false;
     const rank = profile.ranks[kind];
     const cost = this.cost(rank);
     if (rank >= this.maxRankFor(kind) || profile.coins < cost) return false;
@@ -208,10 +234,14 @@ const Progress = {
     return (this.killReward[kind] ?? 0) * (count ?? 0);
   },
 
-  reward(mode, kills) {
+  victoryCoins(stage, firstClear) {
+    return firstClear ? stage.victoryCoins : Math.floor(stage.victoryCoins / 4);
+  },
+
+  reward(mode, kills, stage, firstClear) {
     if (!["won", "lost", "draw"].includes(mode)) return 0;
 
-    const victory = mode === "won" ? this.victoryReward : 0;
+    const victory = mode === "won" ? this.victoryCoins(stage, firstClear) : 0;
     return Object.keys(this.killReward).reduce((total, kind) =>
       total + this.coinsForKills(kind, kills[kind]), victory);
   }

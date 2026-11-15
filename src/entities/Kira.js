@@ -1,7 +1,7 @@
 "use strict";
 
 class Kira extends Healer {
-  static spriteGeometry = { frameWidth: 48, frameHeight: 48, originX: 24, feetOrigin: 42 };
+  static spriteGeometry = { frameWidth: 48, frameHeight: 48, originX: 23, feetOrigin: 42 };
 
   constructor(depth = 0, rank = 0) {
     const { hp, damage, healPercent } = Progress.stats("kira", rank);
@@ -30,8 +30,8 @@ class Kira extends Healer {
       nativeDirection: 1, // Menghadap ke kanan di sprite asli
       barWidth: 20,
       barHeight: 3,
-      barYOffset: 37,
-      shadowWidth: 19
+      barYOffset: 39,
+      shadowWidth: 20
     };
   }
 
@@ -79,7 +79,7 @@ class Kira extends Healer {
       return [this.castRow, Math.floor(this.swing * frameCount / castDuration)];
     }
     if (this.moving) {
-      return [1, Math.floor(this.walk * 7.5) % frameCount];
+      return [1, Math.floor(this.walk * 8) % frameCount];
     }
     return [0, Math.floor(time * 4.2) % frameCount];
   }

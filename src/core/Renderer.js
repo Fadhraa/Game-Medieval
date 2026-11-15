@@ -7,6 +7,8 @@ class Renderer {
     this.width = Constants.CANVAS_WIDTH;
     this.height = Constants.CANVAS_HEIGHT;
     this.ground = Constants.GROUND_Y;
+    this.pixelScale = 3;
+    this.resizeView(this.width);
 
     this.sprites = {};
     this.sky = document.createElement("canvas");
@@ -27,6 +29,12 @@ class Renderer {
       lost: ["Benteng Kerajaan Runtuh", "Goblin berhasil menghancurkan bentengmu.", "Coba Lagi", "Kalah"],
       draw: ["Kedua Markas Runtuh", "Pertempuran berakhir imbang.", "Main Lagi", "Imbang"]
     };
+  }
+
+  resizeView(width) {
+    this.viewWidth = width;
+    this.canvas.width = width * this.pixelScale;
+    this.canvas.height = this.height * this.pixelScale;
   }
 
   loadSpriteSheets() {
@@ -275,6 +283,7 @@ class Renderer {
 
   render(battle, time, cameraX = 0, uiState = null) {
     const ctx = this.ctx;
+    ctx.setTransform(this.pixelScale, 0, 0, this.pixelScale, 0, 0);
 
     if (this.backdropDirty) {
       this.buildBackground(this.backdrop.getContext("2d"));
@@ -330,19 +339,24 @@ class Renderer {
       this.drawSelectionHighlights(ctx, battle, time);
     }
     for (const unit of units) {
-      const sheet = this.sprites[unit.kind];
+      const frostBoss = unit.kind === "frostGolem";
+      const sheet = frostBoss && this.sprites.frostGolemAnimation?.naturalWidth
+        ? this.sprites.frostGolemAnimation : this.sprites[unit.kind];
       if (battle.hasBaseSpeedBuff(unit)) {
         this.drawBaseSpeedAura(ctx, unit, time, speedAuraSheet, "back");
       }
       if (unit instanceof Witcher) {
         unit.drawSummon(ctx, this.ground, time, this.sprites.minotaur, witcherEffects);
       }
-      unit.draw(ctx, this.ground, time, sheet, this.sprites.rootGiantRoots);
+      const poseTime = unit.frozenUntil > battle.elapsed ? unit.frozenUntil : time;
+      const effectSheet = frostBoss ? this.sprites.frostNova : this.sprites.rootGiantRoots;
+      unit.draw(ctx, this.ground, poseTime, sheet, effectSheet);
       if (battle.hasBaseSpeedBuff(unit)) {
         this.drawBaseSpeedAura(ctx, unit, time, speedAuraSheet, "front");
       }
       if (unit instanceof Commander) unit.drawShieldImpact(ctx, this.ground, this.sprites.commanderImpact);
       if (unit.stunnedUntil > battle.elapsed) this.drawStun(ctx, unit, time);
+      if (unit.frostStacks > 0) this.drawFrostStacks(ctx, unit);
     }
     if (battle.mode !== "ready") {
       this.drawSelectionBox(ctx, uiState);
@@ -376,9 +390,9 @@ class Renderer {
       }
     }
 
-    // Fireball & arrow bursts
+    // Impact and projectile bursts
     for (const burst of battle.bursts) {
-      burst.draw(ctx, fireballSheet);
+      burst.draw(ctx, this.sprites[burst.spriteKey]);
     }
     for (const burst of battle.arrowBursts) {
       burst.draw(ctx, burst.skill ? lynceSkillArrowSheet : lynceArrowSheet);
@@ -387,6 +401,10 @@ class Renderer {
     // Lightning bursts
     for (const lb of battle.lightningBursts) {
       lb.draw(ctx, lightningSheet);
+    }
+
+    for (const prison of battle.frostPrisons) {
+      prison.draw(ctx, this.ground, battle.elapsed, this.sprites.frostPrison);
     }
 
     // Particles
@@ -473,20 +491,22 @@ class Renderer {
 
     const active = battle.mode === "playing";
     const availableBread = battle.availableTroopBread;
-    const updateSummon = (button, label, cost, next) => {
+    const updateSummon = (kind, button, label, cost, next) => {
+      const unlocked = Progress.canRecruit(kind, battle.unlockedHeroes);
+      button.hidden = !unlocked;
       const remaining = Math.max(0, next - battle.elapsed);
       const needsBread = availableBread < cost;
       const countdown = Math.ceil(remaining * 10) / 10;
       textValue(label, remaining > 0 ? countdown.toFixed(1).replace(".", ",") + " dtk" :
         !active ? "Panggil" : needsBread ? "Kurang roti" : "Panggil");
-      button.disabled = !active || needsBread || remaining > 0;
+      button.disabled = !unlocked || !active || needsBread || remaining > 0;
     };
 
-    updateSummon(ui.summon, ui.summonLabel, Constants.KNIGHT_COST, battle.nextSummon);
-    updateSummon(ui.summonWizard, ui.wizardLabel, Constants.WIZARD_COST, battle.nextWizard);
-    updateSummon(ui.summonKira, ui.kiraLabel, Constants.KIRA_COST, battle.nextKira);
-    updateSummon(ui.summonJames, ui.jamesLabel, Constants.JAMES_COST, battle.nextJames);
-    updateSummon(ui.summonLynce, ui.lynceLabel, Constants.LYNCE_COST, battle.nextLynce);
+    updateSummon("knight", ui.summon, ui.summonLabel, Constants.KNIGHT_COST, battle.nextSummon);
+    updateSummon("wizard", ui.summonWizard, ui.wizardLabel, Constants.WIZARD_COST, battle.nextWizard);
+    updateSummon("kira", ui.summonKira, ui.kiraLabel, Constants.KIRA_COST, battle.nextKira);
+    updateSummon("james", ui.summonJames, ui.jamesLabel, Constants.JAMES_COST, battle.nextJames);
+    updateSummon("lynce", ui.summonLynce, ui.lynceLabel, Constants.LYNCE_COST, battle.nextLynce);
 
     if (ui.baseSkillButton && ui.baseSkillLabel) {
       const unlocked = battle.isBaseSkillUnlocked();
@@ -753,6 +773,15 @@ class Renderer {
     ctx.restore();
   }
 
+  drawFrostStacks(ctx, unit) {
+    const x = Math.round(unit.x - (unit.frostStacks * 5 - 1) / 2);
+    const y = Math.round(this.ground + unit.depth - unit.getRenderConfig().barYOffset - 7);
+    for (let i = 0; i < unit.frostStacks; i++) {
+      this.rect(ctx, "#224263", x + i * 5, y, 4, 5);
+      this.rect(ctx, "#a5efff", x + i * 5 + 1, y + 1, 2, 3);
+    }
+  }
+
   drawStun(ctx, unit, time) {
     const x = Math.round(unit.x);
     const y = this.ground + unit.depth - unit.getRenderConfig().barYOffset - 7;
@@ -792,6 +821,14 @@ class Renderer {
         const sprite = this.sprites[art];
         ctx.clearRect(0, 0, item.width, item.height);
         if (sprite?.complete && sprite.naturalWidth > 0) {
+          if (art === "kiraPortrait") {
+            const scale = Math.min(item.width / sprite.naturalWidth, item.height / sprite.naturalHeight);
+            const w = Math.round(sprite.naturalWidth * scale);
+            const h = Math.round(sprite.naturalHeight * scale);
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(sprite, Math.round((item.width - w) / 2), item.height - h, w, h);
+            continue;
+          }
           if (art === "frostGolem") {
             const drawH = item.height * 0.86;
             const drawW = drawH * sprite.naturalWidth / sprite.naturalHeight;
@@ -843,6 +880,7 @@ class Renderer {
     if (kind === "minotaur") {
       return { frameWidth: 316, frameHeight: 311, originX: 148, feetOrigin: 298, portraitX: 18, portraitScale: 0.13 };
     }
+    if (kind === "hollowMask") return { ...HollowMask.spriteGeometry, portraitX: 12, portraitScale: 0.34 };
     if (kind === "witcher") {
       return { frameWidth: 64, frameHeight: 64, originX: 34, feetOrigin: 55, portraitX: 13, portraitScale: 0.56 };
     }
@@ -862,7 +900,7 @@ class Renderer {
       return { ...Kira.spriteGeometry, portraitX: 12, portraitScale: 0.62 };
     }
     if (kind === "lynce") {
-      return { ...Lynce.spriteGeometry, portraitX: 11, portraitScale: 0.62 };
+      return { ...Lynce.spriteGeometry, portraitX: 12, portraitScale: 0.31 };
     }
     return { frameWidth: 48, frameHeight: 48, originX: 20, feetOrigin: 43, portraitX: 11, portraitScale: 0.66 };
   }

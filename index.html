@@ -24,6 +24,7 @@
 <script src="src/entities/KiraProjectiles.js" defer></script>
 <script src="src/entities/LynceProjectiles.js" defer></script>
 <script src="src/entities/Unit.js" defer></script>
+<script src="src/entities/HollowMask.js" defer></script>
 <script src="src/entities/Healer.js" defer></script>
 <script src="src/entities/Knight.js" defer></script>
 <script src="src/entities/James.js" defer></script>
@@ -71,7 +72,7 @@
       <button class="secondary" id="exportProgress" type="button">Simpan Progres</button>
       <button class="secondary" id="importProgress" type="button">Impor Progres</button>
       <input id="progressFile" type="file" accept=".json,application/json" hidden>
-      <button class="secondary" id="resetProgress" type="button">Reset karakter, Lumbung, dan koin</button>
+      <button class="secondary" id="resetProgress" type="button">Reset seluruh progres</button>
     </div>
     <p id="progressStatus" class="menu-status" role="status"></p>
   </div>
@@ -87,8 +88,8 @@
   </dialog>
 
   <dialog id="resetDialog" class="menu-panel game-dialog" aria-labelledby="resetTitle" aria-describedby="resetSummary">
-    <h2 id="resetTitle">Reset karakter, Lumbung, dan koin?</h2>
-    <p id="resetSummary">Ksatria, Wizard, Kira, James, Lynce, dan Lumbung kembali ke level 1. Ladang kembali menjadi 1 petak dan saldo menjadi 0 koin.</p>
+    <h2 id="resetTitle">Reset seluruh progres?</h2>
+    <p id="resetSummary">Kampanye kembali ke Chapter 1, Level 1. Hanya Petani dan Ksatria yang tersedia. Semua upgrade dan riwayat pertempuran dihapus, saldo menjadi 0 koin, dan ladang kembali menjadi 1 petak.</p>
     <div class="lobby-actions">
       <button class="secondary" id="cancelReset" type="button" autofocus>Batal</button>
       <button class="danger-button" id="confirmReset" type="button">Reset progres</button>
@@ -107,16 +108,31 @@
   </section>
 
   <section id="barracksScreen" class="menu-panel" aria-labelledby="barracksTitle" hidden>
-    <div class="menu-heading">
+    <div class="menu-heading barracks-banner">
       <div>
         <h1 id="barracksTitle" tabindex="-1">Barak</h1>
-        <p>Gunakan koin kemenangan untuk memperkuat pasukan di pertempuran berikutnya.</p>
+        <p>Buka hero dengan koin, lalu tingkatkan level mereka untuk pertempuran berikutnya.</p>
       </div>
       <button class="secondary" id="leaveBarracks" type="button">Kembali ke lobi</button>
     </div>
     <div id="upgradeCards" class="upgrade-grid"></div>
     <p id="upgradeStatus" class="menu-status" role="status"></p>
   </section>
+
+  <dialog id="heroInfoDialog" class="menu-panel game-dialog hero-info-dialog" aria-labelledby="heroInfoTitle">
+    <div class="hero-info-heading">
+      <div>
+        <p class="hero-info-context" id="heroInfoContext"></p>
+        <h2 id="heroInfoTitle"></h2>
+      </div>
+      <form method="dialog">
+        <button class="secondary" type="submit" autofocus>Tutup</button>
+      </form>
+    </div>
+    <dl class="hero-stats" id="heroInfoStats"></dl>
+    <h3>Kemampuan</h3>
+    <p id="heroInfoAbility"></p>
+  </dialog>
 
   <section id="granaryScreen" class="menu-panel" aria-labelledby="granaryTitle" hidden>
     <div class="menu-heading">

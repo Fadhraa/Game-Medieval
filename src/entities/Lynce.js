@@ -2,10 +2,10 @@
 
 class Lynce extends Unit {
   static spriteGeometry = {
-    frameWidth: 48,
-    frameHeight: 48,
-    originX: 23,
-    feetOrigin: 42,
+    frameWidth: 96,
+    frameHeight: 96,
+    originX: 46,
+    feetOrigin: 84,
   };
   static frameSeconds = 0.075;
   static skillDamageScale = 0.25;
@@ -32,7 +32,7 @@ class Lynce extends Unit {
     return {
       ...super.getRenderConfig(),
       ...Lynce.spriteGeometry,
-      scale: 1,
+      scale: 0.5,
       nativeDirection: 1,
       barWidth: 18,
       barHeight: 3,

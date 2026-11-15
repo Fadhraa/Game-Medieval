@@ -125,6 +125,7 @@ h1 i { color: var(--rust); font-weight: 400; }
   scrollbar-color: #d0a464 #343b32;
   scrollbar-width: thin;
 }
+.deploy-card[hidden],
 .deploy-cards[hidden],
 .selection-command-bar[hidden] {
   display: none;
@@ -345,6 +346,109 @@ body:has(#battleScreen.immersive-fallback) { overflow: hidden; }
 .menu-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
 .menu-heading p { color:var(--muted); margin:10px 0 0; }
 .menu-panel h1 { font-size:clamp(34px,5vw,56px); }
+.barracks-banner {
+  min-height: clamp(150px, 23vw, 225px);
+  padding: clamp(18px, 3vw, 32px);
+  align-items: flex-end;
+  border: 1px solid #574230;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #211a15ec, #211a15b8 43%, #211a151a),
+    #32261e url("assets/sprites/background/barracks.png") center / cover;
+  color: #fff5dd;
+  image-rendering: pixelated;
+}
+.barracks-banner p { max-width: 40ch; color: #f4e0bd; }
+#upgradeCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#upgradeCards .hero-card {
+  --hero-accent: #246956;
+  --hero-wash: #93d1b3;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border-color: #dfcfaf;
+  background: #fff9ed;
+  box-shadow: 0 4px 12px #45321d13;
+}
+#upgradeCards [data-kind="wizard"] { --hero-accent: #51428a; --hero-wash: #b0a4f5; }
+#upgradeCards [data-kind="kira"] { --hero-accent: #853b72; --hero-wash: #e4a3d4; }
+#upgradeCards [data-kind="james"] { --hero-accent: #845018; --hero-wash: #f0ba66; }
+#upgradeCards [data-kind="lynce"] { --hero-accent: #a14329; --hero-wash: #ee9775; }
+.hero-portrait {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 140px;
+  place-items: end center;
+  overflow: hidden;
+  border-bottom: 3px solid var(--hero-accent);
+  background: radial-gradient(ellipse at 50% 75%, color-mix(in srgb, var(--hero-wash) 27%, transparent), transparent 68%),
+    #212329 url("assets/sprites/background/barracks-alcove.png") center 62% / cover;
+  image-rendering: pixelated;
+}
+.hero-portrait canvas {
+  display: block;
+  width: min(132px, 86%);
+  margin-bottom: -1px;
+  filter: drop-shadow(2px 3px 0 #191515bb);
+}
+.hero-level {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  right: 10px;
+  max-width: calc(100% - 20px);
+  padding: 3px 8px;
+  border: 1px solid #fff3cd75;
+  border-radius: 4px;
+  background: #201c20ed;
+  color: #fff0cd;
+  font-size: .75rem;
+  font-weight: 750;
+}
+.is-locked .hero-portrait canvas { filter: saturate(.55) drop-shadow(2px 3px 0 #191515bb); }
+.is-locked .hero-level { background: #402719; border-color: #edb779; color: #ffdcad; }
+.hero-card-body { display: flex; flex: 1; flex-direction: column; padding: 15px 16px 16px; }
+.hero-card-body h2 { margin: 0; font: 700 clamp(21px, 2.5vw, 28px)/1.05 Georgia, serif; }
+.hero-card-body .hero-role {
+  margin: 0 0 4px;
+  color: var(--hero-accent);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+}
+.hero-card-body progress { margin-top: 9px; width: 100%; height: 5px; accent-color: var(--hero-accent); }
+.hero-card-body .hero-summary { margin: 9px 0 12px; color: var(--muted); font-size: .82rem; line-height: 1.4; }
+.hero-card-body .hero-stat-heading { margin: auto 0 4px; color: #655746; font-size: .72rem; font-weight: 700; }
+.hero-stats { margin: 0 0 12px; font-size: .88rem; font-variant-numeric: tabular-nums; }
+.hero-stats div { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px solid #ede0c8; }
+.hero-stats dd { margin: 0; text-align: right; font-weight: 750; }
+.hero-stats dd span { color: var(--hero-accent); }
+.hero-card .hero-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: .88rem;
+}
+.hero-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.hero-bread { display: inline-flex; align-items: center; gap: 5px; color: #5b3b23; font-size: .79rem; font-weight: 750; }
+.hero-bread canvas { width: 22px; height: 22px; }
+.hero-card .hero-info-button { margin: 0; padding: 4px 9px; }
+.hero-info-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.hero-info-context { margin: 0 0 5px; color: #6b5036; font-size: .8rem; font-weight: 750; }
+.hero-info-dialog .hero-stats { margin-bottom: 16px; }
+.hero-info-dialog .hero-stats div { padding: 6px 0; }
+.hero-info-dialog h3 { margin: 0; font-size: .95rem; }
+.hero-info-dialog > #heroInfoAbility { margin: 5px 0 0; font-size: .88rem; }
+.hero-price { padding-left: 7px; border-left: 1px solid currentColor; white-space: nowrap; font-size: .76rem; }
+@media (max-width: 850px) { #upgradeCards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { #upgradeCards { grid-template-columns: minmax(0, 1fr); } }
+.sidebar-reward { color: inherit; font-weight: 700; }
 .upgrade-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,215px),1fr)); gap:14px; margin-top:24px; }
 .upgrade-card { padding:16px; border:1px solid #e3d4b8; border-radius:8px; background:#f9f0de; }
 .upgrade-header { display:flex; gap:10px; align-items:center; }

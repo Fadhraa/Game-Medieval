@@ -36,16 +36,36 @@ class ArenaBoss extends Unit {
     frostGolem: {
       name: "Golem Es",
       threshold: 0.7,
-      hp: 5900,
-      damage: 100,
+      hp: 5000,
+      damage: 45,
       speed: 14,
-      attackEvery: 1.9,
+      attackEvery: 1.5,
       reach: 34,
-      skillInterval: 12,
+      basicTargets: 3,
+      skillInterval: 17,
       skillRange: 108,
       skillDamage: 140,
       skillType: "magic",
-      indicator: "#96efff",
+      skillSpread: 0.5,
+      slowDuration: 3,
+      freezeStacks: 3,
+      freezeDuration: 1.5,
+      freezeDamage: 200,
+      indicator: "#70b2ff",
+      spriteSheet: {
+        frameWidth: 132,
+        frameHeight: 116,
+        originX: 76,
+        feetOrigin: 104,
+        frames: 6,
+        frameSeconds: {
+          idle: 0.16,
+          walk: 0.14,
+          attack1: 0.09,
+          skill: 0.24,
+          defeated: 0.15,
+        },
+      },
     },
   };
 
@@ -63,6 +83,7 @@ class ArenaBoss extends Unit {
     this.skillLatched = false;
     this.skillHitDone = false;
     this.pulledHeroes = [];
+    this.novaHits = new Set();
   }
 
   getRenderConfig() {
@@ -115,48 +136,103 @@ class ArenaBoss extends Unit {
       return;
     }
 
-    const { opponent, distance, base, baseDistance } = this.findOpponent(
-      battle,
-      0,
-    );
+    this.updateFrostGolem(delta, battle);
+  }
+
+  updateFrostGolem(delta, battle) {
+    const { distance, baseDistance } = this.findOpponent(battle, 0);
     const inReach = distance <= this.reach || baseDistance <= this.reach;
+    const { skillRange, skillInterval, spriteSheet } = this.profile;
+    const availableTargets = this.frostTargets(battle, skillRange, false);
     this.flash = Math.max(0, this.flash - delta);
     this.moving = false;
-    if (inReach) this.skillTimer = Math.max(0, this.skillTimer - delta);
+    if (availableTargets.length || inReach) this.skillTimer = Math.max(0, this.skillTimer - delta);
     this.cooldown = Math.max(0, this.cooldown - delta);
 
     if (this.action) {
       const previous = this.actionAge;
+      const frameSeconds = spriteSheet.frameSeconds[this.action];
       this.actionAge += delta;
-      const special = this.action === "skill";
-      const release = special ? 0.9 : 0.25;
-      if (previous < release && this.actionAge >= release) {
-        if (special) this.performSkill(battle);
-        else if (inReach)
-          this.performAttack(
-            distance <= this.reach ? opponent : null,
-            base,
-            battle,
-          );
+      if (this.action === "skill" && this.actionAge >= frameSeconds * 2) {
+        this.updateFrostNova(battle, previous);
+      } else if (this.action === "attack1" && previous < frameSeconds * 3 && this.actionAge >= frameSeconds * 3) {
+        this.hitWithFrostPunch(battle, baseDistance);
       }
-      if (this.actionAge >= (special ? 1.25 : 0.5)) this.action = null;
+      if (this.actionAge >= frameSeconds * spriteSheet.frames) this.setAction(null);
       return;
     }
 
-    if (this.skillTimer === 0 && distance <= this.profile.skillRange) {
-      this.action = "skill";
-      this.actionAge = 0;
-      this.skillTimer = this.profile.skillInterval;
+    if (this.cooldown <= 1e-8 && this.skillTimer <= 1e-8 && availableTargets.length) {
+      this.setAction("skill");
+      this.novaHits.clear();
+      this.skillTimer = skillInterval;
+      this.cooldown = this.attackEvery;
     } else if (inReach) {
-      if (this.cooldown === 0) {
-        this.action = "attack";
-        this.actionAge = 0;
+      if (this.cooldown <= 1e-8) {
+        this.setAction("attack1");
         this.cooldown = this.attackEvery;
       }
     } else {
       this.moving = true;
       this.x += delta * this.speed * this.side;
+      this.walk += delta;
     }
+  }
+
+  frostTargets(battle, range, includeFarmer = true) {
+    return battle.units.filter(unit => {
+      const ahead = (unit.x - this.x) * this.side;
+      return unit.side === 1 && unit.hp > 0 && ahead >= 0 && ahead <= range &&
+        (includeFarmer || unit.kind !== "farmer");
+    });
+  }
+
+  hitWithFrostPunch(battle, baseDistance) {
+    const targets = this.frostTargets(battle, this.reach)
+      .sort((a, b) => b.x - a.x)
+      .slice(0, this.profile.basicTargets);
+    if (!targets.length && baseDistance <= this.reach) battle.damageBase(this.side, this.damage);
+    for (const hero of targets) {
+      hero.takeDamage(this.damage, battle, { type: "physical" });
+      this.applyFrost(hero, 1, battle);
+    }
+    if (targets.length || baseDistance <= this.reach) window.audioManager?.playHit("minotaur");
+  }
+
+  frostNovaProgress(age) {
+    const release = this.profile.spriteSheet.frameSeconds.skill * 2;
+    const elapsed = age - release;
+    return Math.max(0, Math.min(1, elapsed / this.profile.skillSpread));
+  }
+
+  frostNovaRange(age) {
+    return this.profile.skillRange * (1 - (1 - this.frostNovaProgress(age)) ** 3);
+  }
+
+  updateFrostNova(battle, previousAge) {
+    const release = this.profile.spriteSheet.frameSeconds.skill * 2;
+    if (previousAge >= release + this.profile.skillSpread) return;
+    if (previousAge < release) window.audioManager?.playHit("minotaur");
+    const previousRange = this.frostNovaRange(previousAge);
+    const { skillDamage, skillType, slowDuration } = this.profile;
+    for (const hero of this.frostTargets(battle, this.frostNovaRange(this.actionAge), false)) {
+      if (this.novaHits.has(hero) || (hero.x - this.x) * this.side < previousRange) continue;
+      this.novaHits.add(hero);
+      hero.takeDamage(skillDamage, battle, { type: skillType, heavy: true });
+      hero.slowedUntil = Math.max(hero.slowedUntil, battle.elapsed + slowDuration);
+      this.applyFrost(hero, 2, battle);
+    }
+  }
+
+  applyFrost(hero, stacks, battle) {
+    if (hero.kind === "farmer" || hero.hp <= 0 || hero.frozenUntil > battle.elapsed) return;
+    hero.frostStacks += stacks;
+    if (hero.frostStacks < this.profile.freezeStacks) return;
+    hero.frostStacks = 0;
+    hero.frozenUntil = battle.elapsed + this.profile.freezeDuration;
+    hero.moving = false;
+    battle.frostPrisons.push(new FrostPrison(hero, battle.elapsed, hero.frozenUntil));
+    hero.takeDamage(this.profile.freezeDamage, battle, { type: "magic", heavy: true });
   }
 
   updateRootGiant(delta, battle) {
@@ -344,27 +420,6 @@ class ArenaBoss extends Unit {
     }
   }
 
-  performSkill(battle) {
-    const { skillRange, skillDamage, skillType } = this.profile;
-    for (const hero of battle.units) {
-      const distance = (hero.x - this.x) * this.side;
-      if (
-        hero.side === this.side ||
-        hero.hp <= 0 ||
-        hero.kind === "farmer" ||
-        distance < 0 ||
-        distance > skillRange
-      )
-        continue;
-      hero.takeDamage(skillDamage, battle, { type: skillType, heavy: true });
-      if (skillType === "magic")
-        hero.slowedUntil = Math.max(hero.slowedUntil, battle.elapsed + 3);
-    }
-    for (let i = 1; i <= 3; i++)
-      battle.spawnImpact(this.x + (this.side * skillRange * i) / 4, true);
-    window.audioManager?.playHit("minotaur");
-  }
-
   getPose(time) {
     const ss = this.profile.spriteSheet;
     if (!ss) return [0, 0];
@@ -376,6 +431,10 @@ class ArenaBoss extends Unit {
       skill: 4,
       defeated: 5,
     };
+    if (this.kind === "frostGolem") {
+      rows.skill = 3;
+      rows.defeated = 4;
+    }
     if (this.action) {
       const frameSec = ss.frameSeconds[this.action] ?? 0.1;
       const frame = Math.min(
@@ -575,7 +634,33 @@ class ArenaBoss extends Unit {
     ctx.restore();
   }
 
-  draw(ctx, ground, time, sheet, rootSheet) {
+  drawFrostNova(ctx, feet, time, novaSheet) {
+    const x = Math.round(this.x);
+    const release = this.profile.spriteSheet.frameSeconds.skill * 2;
+    const range = this.profile.skillRange;
+    if (this.actionAge < release) {
+      ctx.save();
+      ctx.globalAlpha = 0.5 + 0.18 * Math.sin(time * 22);
+      ctx.fillStyle = this.profile.indicator;
+      ctx.fillRect(x - range, Math.round(feet - 2), range, 2);
+      ctx.restore();
+      return;
+    }
+    if (!novaSheet?.naturalWidth) return;
+    const visualProgress = Math.min(1, (this.actionAge - release) / 0.8);
+    const frame = Math.min(19, Math.floor(visualProgress * 20));
+    const reached = Math.ceil(this.frostNovaRange(this.actionAge));
+    if (reached === 0) return;
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    ctx.globalAlpha = 1 - Math.max(0, visualProgress - 0.75) * 4;
+    ctx.drawImage(novaSheet, (frame % 5) * range + range - reached,
+      Math.floor(frame / 5) * 59, reached, 59,
+      x - reached, Math.round(feet - 47), reached, 59);
+    ctx.restore();
+  }
+
+  draw(ctx, ground, time, sheet, effectSheet) {
     const feet = ground + this.depth;
     const x = Math.round(this.x);
     const ss = this.profile.spriteSheet;
@@ -598,7 +683,8 @@ class ArenaBoss extends Unit {
       );
 
       if (this.action === "skill") {
-        this.drawRootPull(ctx, ground, time, rootSheet);
+        if (this.kind === "frostGolem") this.drawFrostNova(ctx, feet, time, effectSheet);
+        else this.drawRootPull(ctx, ground, time, effectSheet);
       }
 
       ctx.save();
@@ -640,7 +726,7 @@ class ArenaBoss extends Unit {
       const progress = Math.min(1, this.actionAge / 0.85);
       ctx.rotate(-0.35 * progress);
       ctx.scale(1, 1 - 0.52 * progress);
-    } else if (this.action === "attack") {
+    } else if (this.action === "attack1") {
       ctx.rotate(-Math.sin(Math.PI * Math.min(1, this.actionAge / 0.5)) * 0.15);
     } else if (this.moving) {
       ctx.translate(0, -Math.abs(Math.sin(time * 10)) * 3);
@@ -676,5 +762,27 @@ class ArenaBoss extends Unit {
     ctx.strokeText(this.name, x, y - 3);
     ctx.fillText(this.name, x, y - 3);
     ctx.restore();
+  }
+}
+
+
+class FrostPrison {
+  static shatterDuration = 0.45;
+
+  constructor(hero, startedAt, frozenUntil) {
+    this.x = hero.x;
+    this.depth = hero.depth;
+    this.startedAt = startedAt;
+    this.frozenUntil = frozenUntil;
+    this.endsAt = frozenUntil + FrostPrison.shatterDuration;
+  }
+
+  draw(ctx, ground, elapsed, sheet) {
+    if (!sheet?.naturalWidth || elapsed >= this.endsAt) return;
+    const frame = elapsed < this.frozenUntil
+      ? Math.min(23, Math.floor(24 * (elapsed - this.startedAt) / (this.frozenUntil - this.startedAt)))
+      : 24 + Math.min(7, Math.floor(8 * (elapsed - this.frozenUntil) / FrostPrison.shatterDuration));
+    ctx.drawImage(sheet, (frame % 8) * 110, Math.floor(frame / 8) * 75, 110, 75,
+      Math.round(this.x - 41), Math.round(ground + this.depth - 50), 82, 57);
   }
 }

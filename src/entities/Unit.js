@@ -21,6 +21,8 @@ class Unit extends Entity {
     this.flash = 0;
     this.stunnedUntil = 0;
     this.slowedUntil = 0;
+    this.frostStacks = 0;
+    this.frozenUntil = 0;
     this.engaged = false;
     this.attackTarget = null;
     this.hasAttackSlot = false;
@@ -58,7 +60,8 @@ class Unit extends Entity {
       if (ahead >= minimumDistance && ahead < distance) {
         opponent = other;
         distance = ahead;
-      } else if (defendMelee && other.x >= Constants.BASES.hero.x - 12) {
+      } else if ((defendMelee || (this.side === 1 && this.reach <= 45 && other.kind === "hollowMask")) &&
+          other.x >= Constants.BASES.hero.x - 12) {
         const absDist = Math.abs(other.x - this.x);
         if (absDist <= this.reach && absDist < distance) {
           opponent = other;

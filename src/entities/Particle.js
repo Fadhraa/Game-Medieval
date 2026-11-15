@@ -28,6 +28,8 @@ class Particle extends Entity {
 }
 
 class BurstEffect extends Entity {
+  spriteKey = "fireball";
+
   constructor(x, y, life = 0.3) {
     super(x, y);
     this.life = life;
@@ -54,6 +56,32 @@ class BurstEffect extends Entity {
       Math.round(this.y - 16),
       32,
       32
+    );
+  }
+}
+
+class ShieldBashImpact extends BurstEffect {
+  spriteKey = "jamesShieldBash";
+
+  constructor(x, y) {
+    super(x, y, 0.6);
+  }
+
+  draw(ctx, spriteSheet) {
+    if (!spriteSheet?.complete || !spriteSheet.naturalWidth) return;
+    const width = 74;
+    const height = 52;
+    const frame = Math.min(22, Math.floor(23 * (1 - this.life / this.maxLife)));
+    ctx.drawImage(
+      spriteSheet,
+      (frame % 5) * width,
+      Math.floor(frame / 5) * height,
+      width,
+      height,
+      Math.round(this.x - 33),
+      Math.round(this.y - 34),
+      width,
+      height
     );
   }
 }
