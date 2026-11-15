@@ -18,7 +18,13 @@ document.addEventListener("DOMContentLoaded", () => {
       "cameraPosition",
       "cameraHome",
       "cameraEnemy",
-      "cameraWitcher",
+      "selectModeToggle",
+      "deployCards",
+      "selectionCommandBar",
+      "selectionSummary",
+      "cmdAdvance",
+      "cmdDefend",
+      "cmdClearSelect",
       "field",
       "pause",
       "fullscreenBattle",
@@ -56,6 +62,14 @@ document.addEventListener("DOMContentLoaded", () => {
   let selectedStage = campaignStages[0];
   let activeChapterIndex = 0;
   let activeSidebarStage = null;
+  const battleUiState = {
+    boxSelectMode: false,
+    selectionBox: null,
+    placingFlag: false,
+    hoverWorld: null,
+    invalidFlagUntil: 0,
+    invalidWorld: null
+  };
   let lastFrame = performance.now();
 
   renderer.onSpritesUpdated = () => {
@@ -679,9 +693,14 @@ document.addEventListener("DOMContentLoaded", () => {
   ui.cameraPosition.addEventListener("input", () => moveCamera(Number(ui.cameraPosition.value)));
   ui.cameraHome.addEventListener("click", () => moveCamera(0));
   ui.cameraEnemy.addEventListener("click", () => moveCamera(maxCameraX));
-  ui.cameraWitcher.addEventListener("click", () => {
-    const witcher = battle.activeWitcher;
-    if (witcher) moveCamera(witcher.x - ui.scene.width / 2);
+  ui.selectModeToggle?.addEventListener("click", () => {
+    if (battle.mode !== "playing") return;
+    battleUiState.boxSelectMode = !battleUiState.boxSelectMode;
+    if (battleUiState.boxSelectMode && battleUiState.placingFlag) {
+      cancelFlagPlacement();
+    }
+    syncFlagPlacementCursor();
+    renderer.syncHud(battle, ui, battleUiState);
   });
 
   function isImmersive() {
@@ -750,24 +769,249 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("fullscreenchange", syncFullscreen);
   ui.fullscreenBattle.addEventListener("click", toggleFullscreen);
 
+  function getSceneWorldPoint(clientX, clientY) {
+    const rect = ui.scene.getBoundingClientRect();
+    const canvasX = ((clientX - rect.left) / rect.width) * ui.scene.width;
+    const canvasY = ((clientY - rect.top) / rect.height) * ui.scene.height;
+    return { x: canvasX + cameraX, y: canvasY };
+  }
+
+  function syncFlagPlacementCursor() {
+    const placing = Boolean(battleUiState.placingFlag);
+    const boxMode = Boolean(battleUiState.boxSelectMode) && !placing;
+    ui.scene.classList.toggle("placing-flag", placing);
+    ui.scene.classList.toggle("box-select-mode", boxMode);
+    if (!placing) {
+      battleUiState.hoverWorld = null;
+    } else if (ui.status) {
+      ui.status.textContent = "Klik tanah jalur pertempuran untuk memasang bendera bertahan (Esc batal).";
+    }
+  }
+
+  function cancelFlagPlacement() {
+    if (!battleUiState.placingFlag) return;
+    battleUiState.placingFlag = false;
+    syncFlagPlacementCursor();
+    if (battle.mode === "playing" && ui.status) {
+      ui.status.textContent = "Pertempuran berlangsung";
+    }
+    renderer.syncHud(battle, ui, battleUiState);
+  }
+
+  function findCombatHeroAt(worldX, worldY) {
+    if (battle.mode !== "playing") return null;
+    let best = null;
+    let bestDist = Infinity;
+    for (const unit of battle.units) {
+      if (unit.side !== 1 || unit.hp <= 0 || unit.kind === "farmer") continue;
+      const footY = renderer.ground + (unit.depth ?? 0);
+      const dx = Math.abs(worldX - unit.x);
+      const dy = worldY - footY;
+      if (dx <= 14 && dy >= -28 && dy <= 10) {
+        const d = Math.hypot(dx, dy + 10);
+        if (d < bestDist) {
+          best = unit;
+          bestDist = d;
+        }
+      }
+    }
+    return best;
+  }
+
+  function findCombatHeroesInBox(box) {
+    const minX = Math.min(box.startX, box.endX);
+    const maxX = Math.max(box.startX, box.endX);
+    const minY = Math.min(box.startY, box.endY);
+    const maxY = Math.max(box.startY, box.endY);
+    return battle.units.filter((unit) => {
+      if (unit.side !== 1 || unit.hp <= 0 || unit.kind === "farmer") return false;
+      const footY = renderer.ground + (unit.depth ?? 0);
+      const centerY = footY - 10;
+      return unit.x + 8 >= minX && unit.x - 8 <= maxX && footY >= minY && centerY - 12 <= maxY;
+    });
+  }
+
   let drag = null;
   ui.scene.addEventListener("pointerdown", (event) => {
-    if (!event.isPrimary || event.button !== 0) return;
-    drag = { id: event.pointerId, startX: event.clientX, cameraX };
+    if (!event.isPrimary) return;
+    if (event.button === 2) {
+      if (battle.mode !== "playing") return;
+      const startWorld = getSceneWorldPoint(event.clientX, event.clientY);
+      drag = {
+        id: event.pointerId,
+        mode: "box",
+        button: 2,
+        startX: event.clientX,
+        startY: event.clientY,
+        startWorld,
+        cameraX,
+        moved: false
+      };
+      ui.scene.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (event.button !== 0) return;
+    if (battleUiState.boxSelectMode && battle.mode === "playing" && !battleUiState.placingFlag) {
+      const startWorld = getSceneWorldPoint(event.clientX, event.clientY);
+      drag = {
+        id: event.pointerId,
+        mode: "box",
+        button: 0,
+        startX: event.clientX,
+        startY: event.clientY,
+        startWorld,
+        cameraX,
+        moved: false
+      };
+    } else {
+      drag = {
+        id: event.pointerId,
+        mode: "pan",
+        button: 0,
+        startX: event.clientX,
+        startY: event.clientY,
+        cameraX,
+        moved: false
+      };
+    }
     ui.scene.setPointerCapture(event.pointerId);
   });
   ui.scene.addEventListener("pointermove", (event) => {
+    const worldPt = getSceneWorldPoint(event.clientX, event.clientY);
+    if (battleUiState.placingFlag) {
+      battleUiState.hoverWorld = worldPt;
+    }
     if (drag?.id !== event.pointerId) return;
-    const { width, height } = ui.scene.getBoundingClientRect();
-    const scale = Math.max(ui.scene.width / width, ui.scene.height / height);
-    moveCamera(drag.cameraX + (drag.startX - event.clientX) * scale);
+    if (!drag.moved && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 6) {
+      drag.moved = true;
+    }
+    if (!drag.moved) return;
+    if (drag.mode === "box") {
+      battleUiState.selectionBox = {
+        startX: drag.startWorld.x,
+        startY: drag.startWorld.y,
+        endX: worldPt.x,
+        endY: worldPt.y
+      };
+    } else {
+      const { width, height } = ui.scene.getBoundingClientRect();
+      const scale = Math.max(ui.scene.width / width, ui.scene.height / height);
+      moveCamera(drag.cameraX + (drag.startX - event.clientX) * scale);
+    }
   });
-  ui.scene.addEventListener("lostpointercapture", () => { drag = null; });
+  ui.scene.addEventListener("pointerup", (event) => {
+    if (drag?.id !== event.pointerId) return;
+    const currentDrag = drag;
+    drag = null;
+    battleUiState.selectionBox = null;
+
+    if (battle.mode !== "playing") return;
+    const pt = getSceneWorldPoint(event.clientX, event.clientY);
+
+    if (currentDrag.mode === "box") {
+      if (currentDrag.moved) {
+        const inBox = findCombatHeroesInBox({
+          startX: currentDrag.startWorld.x,
+          startY: currentDrag.startWorld.y,
+          endX: pt.x,
+          endY: pt.y
+        });
+        if (event.shiftKey) {
+          const merged = [...battle.getSelectedUnits()];
+          for (const unit of inBox) {
+            if (!merged.includes(unit)) merged.push(unit);
+          }
+          battle.setSelectedUnits(merged);
+        } else {
+          battle.setSelectedUnits(inBox);
+        }
+        battleUiState.placingFlag = false;
+        if (currentDrag.button === 0 && battleUiState.boxSelectMode) {
+          battleUiState.boxSelectMode = false;
+        }
+        syncFlagPlacementCursor();
+        const total = battle.getSelectedUnits().length;
+        if (ui.status) {
+          ui.status.textContent = total > 0
+            ? `${total} pasukan dipilih. Pilih perintah di bawah.`
+            : "Tidak ada pasukan di area pilihan.";
+        }
+        renderer.syncHud(battle, ui, battleUiState);
+        return;
+      }
+      if (currentDrag.button === 2) {
+        if (battleUiState.placingFlag) {
+          cancelFlagPlacement();
+        } else if (battle.getSelectedUnits().length > 0) {
+          battle.clearSelection();
+          if (ui.status) ui.status.textContent = "Pertempuran berlangsung";
+          renderer.syncHud(battle, ui, battleUiState);
+        }
+        return;
+      }
+    }
+
+    if (currentDrag.moved) return;
+
+    if (battleUiState.placingFlag) {
+      if (renderer.isValidFlagPoint(pt.x, pt.y)) {
+        battle.commandSelectedDefend(pt.x);
+        battle.spawnImpact(pt.x, false);
+        battleUiState.placingFlag = false;
+        syncFlagPlacementCursor();
+        if (ui.status) ui.status.textContent = "Bendera bertahan dipasang & formasi diatur otomatis.";
+        renderer.syncHud(battle, ui, battleUiState);
+      } else {
+        battleUiState.invalidFlagUntil = performance.now() + 900;
+        battleUiState.invalidWorld = pt;
+        const onLaneY =
+          pt.y >= Constants.GROUND_Y - Constants.DEFEND.groundToleranceTop &&
+          pt.y <= Constants.GROUND_Y + Constants.DEFEND.groundToleranceBottom;
+        if (ui.status) {
+          ui.status.textContent = onLaneY
+            ? "Posisi bendera harus di antara depan benteng dan sebelum markas musuh."
+            : "Klik area tanah jalur pertempuran, bukan langit atau gunung.";
+        }
+      }
+      return;
+    }
+
+    const hit = findCombatHeroAt(pt.x, pt.y);
+    if (hit) {
+      if (event.shiftKey) {
+        const cur = battle.getSelectedUnits();
+        const next = cur.includes(hit) ? cur.filter((u) => u !== hit) : [...cur, hit];
+        battle.setSelectedUnits(next);
+      } else {
+        battle.setSelectedUnits([hit]);
+      }
+      if (ui.status) ui.status.textContent = `${battle.getSelectedUnits().length} pasukan dipilih.`;
+      renderer.syncHud(battle, ui, battleUiState);
+    } else if (battle.getSelectedUnits().length > 0) {
+      battle.clearSelection();
+      if (ui.status) ui.status.textContent = "Pertempuran berlangsung";
+      renderer.syncHud(battle, ui, battleUiState);
+    }
+  });
+  ui.scene.addEventListener("pointerleave", () => {
+    battleUiState.hoverWorld = null;
+  });
+  ui.scene.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
+  ui.scene.addEventListener("lostpointercapture", () => {
+    drag = null;
+    battleUiState.selectionBox = null;
+  });
 
   renderer.renderIcons();
 
   function togglePause() {
     if (battle.mode === "playing") {
+      battleUiState.placingFlag = false;
+      battleUiState.boxSelectMode = false;
+      battleUiState.selectionBox = null;
+      syncFlagPlacementCursor();
       battle.pause();
       window.audioManager?.pauseBgm();
     } else if (battle.mode === "paused") {
@@ -776,7 +1020,7 @@ document.addEventListener("DOMContentLoaded", () => {
       battle.resume();
       lastFrame = performance.now();
     }
-    renderer.syncHud(battle, ui);
+    renderer.syncHud(battle, ui, battleUiState);
     if (battle.mode === "playing") {
       (ui.summon.disabled ? ui.field : ui.summon).focus({ preventScroll: true });
     }
@@ -785,13 +1029,17 @@ document.addEventListener("DOMContentLoaded", () => {
   function startBattle() {
     window.audioManager?.unlock();
     window.audioManager?.playBgm();
+    battleUiState.placingFlag = false;
+    battleUiState.boxSelectMode = false;
+    battleUiState.selectionBox = null;
+    syncFlagPlacementCursor();
     ui.title.textContent = "Level " + selectedStage.id + " · " + selectedStage.name;
     ui.battleBriefing.textContent = selectedStage.briefing;
     showScreen("battle");
     battle.start(profile.ranks, profile.matchHistory, selectedStage, profile.hasSecondPlot);
     moveCamera(0);
     lastFrame = performance.now();
-    renderer.syncHud(battle, ui);
+    renderer.syncHud(battle, ui, battleUiState);
     window.scrollTo({ top: 0, behavior: "instant" });
     (isImmersive() ? ui.field : ui.title).focus({ preventScroll: true });
   }
@@ -806,7 +1054,7 @@ document.addEventListener("DOMContentLoaded", () => {
   ];
 
   function summon(kind) {
-    if (battle.recruit(kind)) renderer.syncHud(battle, ui);
+    if (battle.recruit(kind)) renderer.syncHud(battle, ui, battleUiState);
   }
 
   ui.play.addEventListener("click", () => {
@@ -837,8 +1085,37 @@ document.addEventListener("DOMContentLoaded", () => {
   for (const [kind, button] of summonSlots) {
     button.addEventListener("click", () => summon(kind));
   }
+  ui.cmdAdvance?.addEventListener("click", () => {
+    if (battle.mode !== "playing") return;
+    battleUiState.placingFlag = false;
+    syncFlagPlacementCursor();
+    const count = battle.commandSelectedAdvance();
+    if (ui.status && count > 0) {
+      ui.status.textContent = `${count} pasukan diperintahkan menyerang maju.`;
+    }
+    renderer.syncHud(battle, ui, battleUiState);
+  });
+  ui.cmdDefend?.addEventListener("click", () => {
+    if (battle.mode !== "playing" || battle.getSelectedUnits().length === 0) return;
+    battleUiState.placingFlag = !battleUiState.placingFlag;
+    battleUiState.boxSelectMode = false;
+    syncFlagPlacementCursor();
+    if (!battleUiState.placingFlag && ui.status) {
+      ui.status.textContent = `${battle.getSelectedUnits().length} pasukan dipilih.`;
+    }
+    renderer.syncHud(battle, ui, battleUiState);
+  });
+  ui.cmdClearSelect?.addEventListener("click", () => {
+    battleUiState.placingFlag = false;
+    battle.clearSelection();
+    syncFlagPlacementCursor();
+    if (battle.mode === "playing" && ui.status) {
+      ui.status.textContent = "Pertempuran berlangsung";
+    }
+    renderer.syncHud(battle, ui, battleUiState);
+  });
   ui.baseSkillButton.addEventListener("click", () => {
-    if (battle.activateBaseSkill()) renderer.syncHud(battle, ui);
+    if (battle.activateBaseSkill()) renderer.syncHud(battle, ui, battleUiState);
   });
 
   document.addEventListener("keydown", (event) => {
@@ -849,6 +1126,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (screen !== "battle" || ui.resultDialog.open || ui.settingsDialog.open ||
         event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.code === "Escape" && battleUiState.placingFlag) {
+      event.preventDefault();
+      cancelFlagPlacement();
+      return;
+    }
+    if (event.code === "Escape" && battle.getSelectedUnits().length > 0) {
+      event.preventDefault();
+      battle.clearSelection();
+      if (battle.mode === "playing" && ui.status) ui.status.textContent = "Pertempuran berlangsung";
+      renderer.syncHud(battle, ui, battleUiState);
+      return;
+    }
     if (event.code === "Escape" && ui.battleScreen.classList.contains("immersive-fallback")) {
       leaveFullscreen();
       return;
@@ -863,7 +1152,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (event.code === "KeyQ") {
       if (battle.activateBaseSkill()) {
         event.preventDefault();
-        renderer.syncHud(battle, ui);
+        renderer.syncHud(battle, ui, battleUiState);
       }
       return;
     }
@@ -905,9 +1194,15 @@ document.addEventListener("DOMContentLoaded", () => {
     if (screen === "battle") {
       const wasPlaying = battle.mode === "playing";
       battle.update(delta);
-      renderer.syncHud(battle, ui);
-      renderer.render(battle, battle.elapsed, cameraX);
-      if (wasPlaying && ["won", "lost", "draw"].includes(battle.mode)) finishBattle();
+      renderer.syncHud(battle, ui, battleUiState);
+      renderer.render(battle, battle.elapsed, cameraX, battleUiState);
+      if (wasPlaying && ["won", "lost", "draw"].includes(battle.mode)) {
+        battleUiState.placingFlag = false;
+        battleUiState.boxSelectMode = false;
+        battleUiState.selectionBox = null;
+        syncFlagPlacementCursor();
+        finishBattle();
+      }
     } else if (screen === "lobby") {
       renderer.render(battle, now / 1000, 0);
       ui.courtyardArt.getContext("2d").drawImage(ui.scene, 0, 0, Constants.CANVAS_WIDTH,

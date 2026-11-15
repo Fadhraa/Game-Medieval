@@ -273,7 +273,7 @@ class Renderer {
     }
   }
 
-  render(battle, time, cameraX = 0) {
+  render(battle, time, cameraX = 0, uiState = null) {
     const ctx = this.ctx;
 
     if (this.backdropDirty) {
@@ -301,6 +301,10 @@ class Renderer {
       this.drawFarm(ctx, farmer, Constants.FARM.plots[index].x);
     }
 
+    if (battle.mode !== "ready") {
+      this.drawGuardFlags(ctx, battle, time, uiState);
+    }
+
     // Far half of each healing rune goes behind the units.
     const healSheet = this.sprites.healingAura;
     for (const aura of battle.healingAuras) {
@@ -322,6 +326,9 @@ class Renderer {
     }
 
     const speedAuraSheet = this.sprites.baseSpeedAura;
+    if (battle.mode !== "ready") {
+      this.drawSelectionHighlights(ctx, battle, time);
+    }
     for (const unit of units) {
       const sheet = this.sprites[unit.kind];
       if (battle.hasBaseSpeedBuff(unit)) {
@@ -336,6 +343,9 @@ class Renderer {
       }
       if (unit instanceof Commander) unit.drawShieldImpact(ctx, this.ground, this.sprites.commanderImpact);
       if (unit.stunnedUntil > battle.elapsed) this.drawStun(ctx, unit, time);
+    }
+    if (battle.mode !== "ready") {
+      this.drawSelectionBox(ctx, uiState);
     }
 
     // Near edge sits in front of feet, so overlapping enemies cannot hide
@@ -388,7 +398,7 @@ class Renderer {
     ctx.restore();
   }
 
-  syncHud(battle, ui) {
+  syncHud(battle, ui, uiState = null) {
     const textValue = (el, val) => {
       if (el && el.textContent !== val) el.textContent = val;
     };
@@ -437,8 +447,11 @@ class Renderer {
       .map((v) => String(v).padStart(2, "0"))
       .join(":");
     textValue(ui.clock, clock);
-    const witcherHidden = !battle.activeWitcher;
-    if (ui.cameraWitcher.hidden !== witcherHidden) ui.cameraWitcher.hidden = witcherHidden;
+    if (ui.selectModeToggle) {
+      const boxMode = Boolean(uiState?.boxSelectMode);
+      ui.selectModeToggle.classList.toggle("is-active", boxMode);
+      ui.selectModeToggle.setAttribute("aria-pressed", String(boxMode));
+    }
 
     textValue(ui.breadCount, String(battle.bread));
     const farmers = battle.farmersByPlot;
@@ -494,6 +507,221 @@ class Renderer {
         }
         ui.baseSkillButton.disabled = !active || skillActive || skillCooldown;
       }
+    }
+
+    const selectedUnits = active ? battle.getSelectedUnits?.() ?? [] : [];
+    const showCmdBar = active && selectedUnits.length > 0;
+    if (ui.deployCards && ui.selectionCommandBar) {
+      ui.deployCards.hidden = showCmdBar;
+      ui.selectionCommandBar.hidden = !showCmdBar;
+      if (showCmdBar) {
+        const counts = new Map();
+        for (const u of selectedUnits) {
+          counts.set(u.kind, (counts.get(u.kind) ?? 0) + 1);
+        }
+        const names = { knight: "Ksatria", james: "James", lynce: "Lynce", wizard: "Wizard", kira: "Kira" };
+        const breakdown = [...counts.entries()]
+          .map(([kind, count]) => `${count} ${names[kind] ?? kind}`)
+          .join(" · ");
+        textValue(ui.selectionSummary, `${selectedUnits.length} dipilih (${breakdown})`);
+        if (ui.cmdDefend) {
+          const isPlacing = Boolean(uiState?.placingFlag);
+          ui.cmdDefend.classList.toggle("is-placing", isPlacing);
+          textValue(ui.cmdDefend, isPlacing ? "📍 Klik Tanah Bertahan" : "🛡 Bertahan (Bendera)");
+        }
+      }
+    }
+  }
+
+  isValidFlagPoint(worldX, worldY) {
+    const def = Constants.DEFEND;
+    const maxX = Constants.BASES.enemy.x - def.maxMarginFromEnemyBase;
+    const minY = this.ground - def.groundToleranceTop;
+    const maxY = this.ground + def.groundToleranceBottom;
+    return worldX >= def.minX && worldX <= maxX && worldY >= minY && worldY <= maxY;
+  }
+
+  drawSingleFlag(ctx, x, y, color, tag, time, ghost = false) {
+    const px = Math.round(x);
+    const py = Math.round(y);
+    const flutter = Math.round(Math.sin(time * 7 + x * 0.05));
+
+    ctx.save();
+    if (ghost) ctx.globalAlpha = 0.72;
+
+    // Ground shadow + 100px detection marker ahead
+    ctx.fillStyle = "rgba(32, 26, 18, 0.35)";
+    ctx.fillRect(px - 5, py - 1, 10, 2);
+
+    const detectEnd = Math.min(Constants.BASES.enemy.x - 18, px + Constants.DEFEND.detectRange);
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = ghost ? 0.55 : 0.34;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(detectEnd, py);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.globalAlpha = ghost ? 0.8 : 1;
+    // Flag pole
+    ctx.fillStyle = "#3b2817";
+    ctx.fillRect(px - 1, py - 24, 3, 24);
+    ctx.fillStyle = "#7a5330";
+    ctx.fillRect(px, py - 23, 1, 22);
+    ctx.fillStyle = "#f4cf7a";
+    ctx.fillRect(px - 1, py - 25, 3, 2);
+
+    // Triangular pennant flag
+    ctx.fillStyle = "#2b1d10";
+    ctx.fillRect(px + 2, py - 23, 13, 10);
+    ctx.fillStyle = color;
+    ctx.fillRect(px + 2, py - 22, 11, 8);
+    ctx.fillRect(px + 13, py - 21 + flutter, 3, 5);
+
+    // Hero initial badge on pennant
+    ctx.fillStyle = "#20170e";
+    ctx.font = "bold 7px monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(tag, px + 4, py - 15);
+    ctx.restore();
+  }
+
+  drawSelectionHighlights(ctx, battle, time) {
+    const selected = battle.getSelectedUnits?.() ?? [];
+    if (selected.length === 0) return;
+
+    const pulse = 0.72 + Math.sin(time * 6) * 0.28;
+    ctx.save();
+    for (const unit of selected) {
+      const x = Math.round(unit.x);
+      const footY = Math.round(this.ground + (unit.depth ?? 0) + 1);
+      ctx.fillStyle = "rgba(120, 240, 156, 0.22)";
+      ctx.strokeStyle = `rgba(138, 255, 168, ${pulse.toFixed(2)})`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.ellipse(x, footY, 10, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawSelectionBox(ctx, uiState) {
+    const box = uiState?.selectionBox;
+    if (!box) return;
+    const x = Math.round(Math.min(box.startX, box.endX));
+    const y = Math.round(Math.min(box.startY, box.endY));
+    const w = Math.round(Math.abs(box.endX - box.startX));
+    const h = Math.round(Math.abs(box.endY - box.startY));
+    if (w < 2 && h < 2) return;
+
+    ctx.save();
+    ctx.fillStyle = "rgba(116, 222, 132, 0.16)";
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = "#8df5a0";
+    ctx.lineWidth = 1.25;
+    ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+    ctx.restore();
+  }
+
+  drawGuardFlags(ctx, battle, time, uiState) {
+    const def = Constants.DEFEND;
+
+    // Highlight valid placement strip while player has Flag Cursor active
+    if (uiState?.placingFlag) {
+      const minX = def.minX;
+      const maxX = Constants.BASES.enemy.x - def.maxMarginFromEnemyBase;
+      const minY = this.ground - def.groundToleranceTop;
+      const bandH = def.groundToleranceTop + def.groundToleranceBottom;
+
+      ctx.save();
+      ctx.fillStyle = "rgba(116, 222, 132, 0.18)";
+      ctx.fillRect(minX, minY, maxX - minX, bandH);
+      ctx.strokeStyle = "rgba(166, 250, 176, 0.72)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 4]);
+      ctx.strokeRect(minX + 0.5, minY + 0.5, maxX - minX - 1, bandH - 1);
+      ctx.setLineDash([]);
+
+      if (uiState.hoverWorld) {
+        const hx = Math.round(uiState.hoverWorld.x);
+        const hy = Math.round(uiState.hoverWorld.y);
+        if (this.isValidFlagPoint(hx, hy)) {
+          this.drawSingleFlag(
+            ctx,
+            hx,
+            this.ground + 3,
+            "#ffcf75",
+            "B",
+            time,
+            true
+          );
+          const selected = battle.getSelectedUnits?.() ?? [];
+          const seenKinds = new Set();
+          for (const unit of selected) {
+            if (seenKinds.has(unit.kind)) continue;
+            seenKinds.add(unit.kind);
+            const back = def.formationBackOffsets?.[unit.kind] ?? 0;
+            const slotX = Math.round(Math.max(Constants.BASES.hero.x + 10, hx - back));
+            ctx.fillStyle = def.colors?.[unit.kind] ?? "#ffcf75";
+            ctx.globalAlpha = 0.78;
+            ctx.beginPath();
+            ctx.arc(slotX, this.ground + 2, 3.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+        } else {
+          ctx.strokeStyle = "#ff6859";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(hx - 5, hy - 5);
+          ctx.lineTo(hx + 5, hy + 5);
+          ctx.moveTo(hx + 5, hy - 5);
+          ctx.lineTo(hx - 5, hy + 5);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
+    // Brief red flash when player clicked sky/mountain outside valid ground
+    if (uiState?.invalidFlagUntil > performance.now() && uiState.invalidWorld) {
+      const ix = Math.round(uiState.invalidWorld.x);
+      const iy = Math.round(uiState.invalidWorld.y);
+      const alpha = Math.max(0, Math.min(1, (uiState.invalidFlagUntil - performance.now()) / 900));
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = "#ff5a4c";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ix - 7, iy - 7);
+      ctx.lineTo(ix + 7, iy + 7);
+      ctx.moveTo(ix + 7, iy - 7);
+      ctx.lineTo(ix - 7, iy + 7);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Draw planted guard flags (one per active guard group)
+    const placedCounts = new Map();
+    for (const flag of battle.guardFlags ?? []) {
+      const bucket = Math.round(flag.x / 6);
+      const offsetIdx = placedCounts.get(bucket) ?? 0;
+      placedCounts.set(bucket, offsetIdx + 1);
+      const drawX = flag.x + offsetIdx * 4;
+      const drawY = this.ground + 3 - (offsetIdx % 3) * 3;
+      const tag = flag.count > 1 ? String(flag.count) : "B";
+      this.drawSingleFlag(
+        ctx,
+        drawX,
+        drawY,
+        flag.color ?? "#ffcf75",
+        tag,
+        time,
+        false
+      );
     }
   }
 

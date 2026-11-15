@@ -23,6 +23,9 @@ class Battle {
     this.chapterIndex = 0;
     this.baseSkillActiveUntil = 0;
     this.baseSkillCooldownUntil = 0;
+    this.selectedUnits = [];
+    this.guardFlags = [];
+    this.nextFlagId = 0;
 
     this.units = [];
     this.kills = {};
@@ -60,6 +63,9 @@ class Battle {
     this.chapterIndex = 0;
     this.baseSkillActiveUntil = 0;
     this.baseSkillCooldownUntil = 0;
+    this.selectedUnits = [];
+    this.guardFlags = [];
+    this.nextFlagId = 0;
     this.units = [];
     this.kills = Object.fromEntries(Object.keys(Progress.killReward).map(kind => [kind, 0]));
     this.bossKind = stage.boss;
@@ -213,6 +219,95 @@ class Battle {
     this[nextKey] = this.elapsed + cooldown;
     const unit = this.spawnUnit(kind);
     if (unit) this.recruits[unit.kind]++;
+    return true;
+  }
+
+  clampGuardX(x) {
+    const minX = Constants.DEFEND.minX;
+    const maxX = Constants.BASES.enemy.x - Constants.DEFEND.maxMarginFromEnemyBase;
+    return Math.round(Math.max(minX, Math.min(maxX, x)));
+  }
+
+  getSelectedUnits() {
+    this.selectedUnits = this.selectedUnits.filter(
+      (unit) => unit && unit.hp > 0 && unit.active !== false
+    );
+    return this.selectedUnits;
+  }
+
+  setSelectedUnits(units) {
+    const seen = new Set();
+    const valid = [];
+    for (const unit of units) {
+      if (
+        !unit ||
+        seen.has(unit) ||
+        unit.side !== 1 ||
+        unit.kind === "farmer" ||
+        unit.hp <= 0 ||
+        unit.active === false
+      ) {
+        continue;
+      }
+      seen.add(unit);
+      valid.push(unit);
+    }
+    this.selectedUnits = valid;
+    return valid;
+  }
+
+  clearSelection() {
+    this.selectedUnits = [];
+  }
+
+  pruneGuardFlags() {
+    const activeIds = new Set();
+    for (const unit of this.units) {
+      if (unit.side === 1 && unit.hp > 0 && unit.command?.flagId) {
+        activeIds.add(unit.command.flagId);
+      }
+    }
+    this.guardFlags = this.guardFlags.filter((flag) => activeIds.has(flag.id));
+  }
+
+  commandSelectedAdvance() {
+    const selected = this.getSelectedUnits();
+    if (!selected.length) return false;
+    for (const unit of selected) {
+      unit.command = null;
+    }
+    this.pruneGuardFlags();
+    return true;
+  }
+
+  commandSelectedDefend(rawFlagX) {
+    const selected = this.getSelectedUnits();
+    if (!selected.length) return false;
+    const flagX = this.clampGuardX(rawFlagX);
+    const flagId = ++this.nextFlagId;
+    const roleCounts = new Map();
+    const assignedColors = new Set();
+
+    for (const unit of selected) {
+      const roleIdx = roleCounts.get(unit.kind) ?? 0;
+      roleCounts.set(unit.kind, roleIdx + 1);
+      const backOffset = Constants.DEFEND.formationBackOffsets[unit.kind] ?? 0;
+      const stagger = (roleIdx % 4) * 5;
+      const guardX = Math.max(
+        Constants.BASES.hero.x + 10,
+        flagX - backOffset - stagger
+      );
+      unit.command = { flagId, flagX, guardX };
+      assignedColors.add(Constants.DEFEND.colors[unit.kind] ?? "#ffcf75");
+    }
+
+    this.guardFlags.push({
+      id: flagId,
+      x: flagX,
+      color: assignedColors.size === 1 ? [...assignedColors][0] : "#ffcf75",
+      count: selected.length
+    });
+    this.pruneGuardFlags();
     return true;
   }
 
@@ -407,6 +502,8 @@ class Battle {
       if (unit.hp <= 0 && Object.hasOwn(this.kills, unit.kind)) this.kills[unit.kind]++;
       return false;
     });
+    this.getSelectedUnits();
+    this.pruneGuardFlags();
     this.projectiles = this.projectiles.filter((p) => p.active);
     this.bursts = this.bursts.filter((b) => b.active);
     this.arrowBursts = this.arrowBursts.filter((b) => b.active);

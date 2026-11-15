@@ -183,7 +183,7 @@
       <button class="secondary" type="button" id="cameraHome">Benteng</button>
       <input id="cameraPosition" type="range" min="0" value="0" aria-label="Geser kamera">
       <button class="secondary" type="button" id="cameraEnemy">Markas musuh</button>
-      <button class="secondary" type="button" id="cameraWitcher" aria-label="Arahkan kamera ke Witcher" hidden>Witcher</button>
+      <button class="secondary" type="button" id="selectModeToggle" aria-pressed="false" title="Seret kotak pilih pasukan di medan pertempuran">Pilih Area</button>
     </div>
     <section class="deploy" aria-label="Panggil pasukan">
       <div class="deploy-supplies">
@@ -194,7 +194,7 @@
           <span class="base-skill-state" id="baseSkillLabel">Siap [Q]</span>
         </button>
       </div>
-      <div class="deploy-cards">
+      <div class="deploy-cards" id="deployCards">
         <button class="deploy-card" id="summonFarmer" type="button" aria-label="Panggil Petani Gandum, 1 roti" aria-describedby="farmerLabel" aria-keyshortcuts="1" disabled>
           <span class="deploy-portrait farmer"><canvas data-art="farmer" width="24" height="24" aria-hidden="true"></canvas><kbd aria-hidden="true">1</kbd></span>
           <span class="deploy-name">Petani</span>
@@ -231,6 +231,14 @@
           <span class="deploy-cost">5 roti</span>
           <span class="deploy-state" id="lynceLabel">Panggil</span>
         </button>
+      </div>
+      <div id="selectionCommandBar" class="selection-command-bar" role="group" aria-label="Perintah pasukan terpilih" hidden>
+        <div class="selection-summary" id="selectionSummary">0 pasukan dipilih</div>
+        <div class="selection-actions">
+          <button class="selection-btn is-advance" id="cmdAdvance" type="button">⚔ Serang / Maju</button>
+          <button class="selection-btn is-defend" id="cmdDefend" type="button">🛡 Bertahan (Bendera)</button>
+          <button class="selection-btn is-cancel" id="cmdClearSelect" type="button" aria-label="Batal pilihan pasukan">✕ Batal</button>
+        </div>
       </div>
     </section>
     <div class="battle-foot">

@@ -25,6 +25,7 @@ class Unit extends Entity {
     this.attackTarget = null;
     this.hasAttackSlot = false;
     this.moving = false;
+    this.facing = this.side;
   }
 
   getRenderConfig() {
@@ -45,13 +46,24 @@ class Unit extends Entity {
   findOpponent(battle, minimumDistance = -2) {
     let opponent = null;
     let distance = Infinity;
+    const defendMelee =
+      this.side === 1 &&
+      Boolean(this.command) &&
+      this.reach <= 45;
 
     for (const other of battle.units) {
       if (other === this || other.hp <= 0) continue;
+      if (other.side === this.side) continue;
       const ahead = (other.x - this.x) * this.side;
-      if (other.side !== this.side && ahead >= minimumDistance && ahead < distance) {
+      if (ahead >= minimumDistance && ahead < distance) {
         opponent = other;
         distance = ahead;
+      } else if (defendMelee && other.x >= Constants.BASES.hero.x - 12) {
+        const absDist = Math.abs(other.x - this.x);
+        if (absDist <= this.reach && absDist < distance) {
+          opponent = other;
+          distance = absDist;
+        }
       }
     }
 
@@ -59,6 +71,27 @@ class Unit extends Entity {
     const baseDistance = (base.x - this.x) * this.side;
 
     return { opponent, distance, base, baseDistance };
+  }
+
+  findDefendThreat(battle, cmd) {
+    const minGuardX = Constants.BASES.hero.x - 12;
+    const maxGuardX = Math.max(cmd.flagX + Constants.DEFEND.detectRange, cmd.guardX + this.reach);
+    let frontmost = null;
+    let bestX = Infinity;
+    let bestDist = Infinity;
+
+    for (const other of battle.units) {
+      if (other.side === this.side || other.hp <= 0) continue;
+      if (other.x < minGuardX || other.x > maxGuardX) continue;
+      const dist = Math.abs(other.x - this.x);
+      if (other.x < bestX - 1 || (Math.abs(other.x - bestX) <= 1 && dist < bestDist)) {
+        frontmost = other;
+        bestX = other.x;
+        bestDist = dist;
+      }
+    }
+
+    return frontmost;
   }
 
   canAttackSlot(target, battle) {
@@ -122,8 +155,17 @@ class Unit extends Entity {
     this.attackTarget = null;
     this.hasAttackSlot = false;
 
+    const cmd = this.side === 1 ? this.command : null;
+
     if (this.engaged) {
       const target = distance <= this.reach ? opponent : null;
+      this.facing = target
+        ? target.x < this.x
+          ? -1
+          : target.x > this.x
+          ? 1
+          : this.side
+        : this.side;
       this.attackTarget = target ?? base;
       this.hasAttackSlot = this.canAttackSlot(this.attackTarget, battle);
 
@@ -132,7 +174,38 @@ class Unit extends Entity {
         this.cooldown = this.attackEvery + Math.min(0, remainingCooldown);
         this.swing = 0;
       }
+    } else if (cmd) {
+      const threat = this.findDefendThreat(battle, cmd);
+      const travel = this.speed * delta * move;
+      if (threat) {
+        if (threat.x < this.x) {
+          this.facing = -1;
+          this.moving = travel > 0;
+          this.x -= travel;
+          this.walk += travel / this.speed;
+        } else {
+          this.facing = 1;
+          this.moving = travel > 0;
+          this.x += travel;
+          this.walk += travel / this.speed;
+        }
+      } else {
+        const diff = cmd.guardX - this.x;
+        if (Math.abs(diff) > 2 && travel > 0) {
+          const dir = diff > 0 ? 1 : -1;
+          const step = Math.min(Math.abs(diff), travel);
+          this.facing = dir;
+          this.moving = true;
+          this.x += dir * step;
+          this.walk += step / this.speed;
+        } else {
+          if (Math.abs(diff) <= 2) this.x = cmd.guardX;
+          this.facing = this.side;
+          this.moving = false;
+        }
+      }
     } else {
+      this.facing = this.side;
       const travel = this.speed * delta * move;
       this.moving = travel > 0;
       this.x += travel * this.side;
@@ -160,7 +233,7 @@ class Unit extends Entity {
 
     if (hasSheet) {
       const [row, frame] = this.getPose(time);
-      const direction = this.side === (cfg.nativeDirection ?? 1) ? 1 : -1;
+      const direction = (this.facing ?? this.side) === (cfg.nativeDirection ?? 1) ? 1 : -1;
 
       // Ground shadow
       ctx.fillStyle = "#5e6040";

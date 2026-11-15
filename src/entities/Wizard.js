@@ -43,7 +43,7 @@ class Wizard extends Unit {
   drawProcedural(ctx, feet) {
     ctx.save();
     ctx.translate(Math.round(this.x), Math.round(feet));
-    ctx.scale(this.side, 1);
+    ctx.scale(this.facing ?? this.side, 1);
     const step = this.engaged ? 0 : Math.floor(this.walk * 7.5) % 4;
     const bob = step % 2;
     const swing = this.engaged && this.swing < 0.24;

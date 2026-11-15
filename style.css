@@ -49,6 +49,12 @@ h1 i { color: var(--rust); font-weight: 400; }
 .clock { min-width: 64px; text-align: center; padding: 7px 8px; border: 1px solid #4c5142; border-radius: 4px; background: #1d221d; color: #f3d396; font: 700 14px ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .field { position: relative; isolation: isolate; }
 #scene { display: block; width: 100%; height: auto; background: #b6cebe; cursor: grab; touch-action: pan-y; }
+#scene.box-select-mode {
+  cursor: crosshair;
+}
+#scene.placing-flag {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M5 2v20' stroke='%232e1e0f' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M6 3l13 4.5L6 12z' fill='%23ffcf75' stroke='%232e1e0f' stroke-width='1.5' stroke-linejoin='round'/%3E%3Ccircle cx='5' cy='21' r='2' fill='%2378d986' stroke='%232e1e0f' stroke-width='1'/%3E%3C/svg%3E") 5 21, crosshair !important;
+}
 .overlay { display: grid; place-items: center; position: absolute; inset: 0; background: #181c1426; }
 .mission { width: min(355px, calc(100% - 22px)); padding: 19px 16px; text-align: center; color: #fff3d9; border: 1px solid #c49b58; border-radius: 8px; background: #292b22f5; box-shadow: 0 0 0 4px #25271fb3, 0 9px 26px #1a201c55; }
 .mission h2 { margin: 0; font: 700 clamp(21px, 3.6vw, 32px)/1.08 Georgia, serif; letter-spacing: -.025em; }
@@ -119,6 +125,10 @@ h1 i { color: var(--rust); font-weight: 400; }
   scrollbar-color: #d0a464 #343b32;
   scrollbar-width: thin;
 }
+.deploy-cards[hidden],
+.selection-command-bar[hidden] {
+  display: none;
+}
 .deploy-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -130,6 +140,70 @@ h1 i { color: var(--rust); font-weight: 400; }
   background: #ffdf9c;
   color: #34291d;
   box-shadow: inset 0 -2px #d1a569;
+}
+.selection-command-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 82px;
+  margin: 4px 3px 6px;
+  padding: 10px 12px;
+  border: 1px solid #6f815d;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #2f3a2e 0%, #232b23 100%);
+  color: #fff3d7;
+}
+.selection-summary {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffdf9c;
+}
+.selection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.selection-btn {
+  padding: 7px 12px;
+  border: 1px solid #6b7665;
+  border-radius: 6px;
+  background: #384338;
+  color: #f6edd5;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.selection-btn:hover {
+  background: #465446;
+}
+.selection-btn.is-advance {
+  border-color: #d0944c;
+  background: #73481e;
+  color: #fff3dc;
+}
+.selection-btn.is-advance:hover {
+  background: #8c5927;
+}
+.selection-btn.is-defend {
+  border-color: #6bc48d;
+  background: #23583d;
+  color: #e9fff0;
+}
+.selection-btn.is-defend:hover {
+  background: #2c6d4c;
+}
+.selection-btn.is-defend.is-placing {
+  border-color: #ffcf75;
+  background: #9d681c;
+  color: #fff6dc;
+  box-shadow: 0 0 0 2px rgba(255, 207, 117, 0.45);
+}
+.selection-btn.is-cancel {
+  border-color: #5b6359;
+  background: #2e342e;
+  color: #d6ceb8;
 }
 .deploy-card:enabled:hover { background: #fff0c7; }
 .deploy-card:enabled:active { background: #f5cc87; }
@@ -240,11 +314,15 @@ body:has(#battleScreen.immersive-fallback) { overflow: hidden; }
 }
 
 .camera-controls button::before { display: none; }
-#cameraWitcher { background: #eadcf3; border-color: #c5a4d6; color: #482b5c; }
-#cameraWitcher:hover { background: #f6eafa; }
-@media (max-width: 390px) {
-  .camera-controls:has(#cameraWitcher:not([hidden])) { gap: 5px; padding-inline: 6px; }
-  .camera-controls:has(#cameraWitcher:not([hidden])) button { padding-inline: 5px; font-size: 11px; }
+#selectModeToggle.is-active {
+  background: #ffcf75;
+  border-color: #b88942;
+  color: #38291b;
+  font-weight: 700;
+}
+@media (max-width: 440px) {
+  .camera-controls { gap: 5px; padding-inline: 6px; }
+  .camera-controls button { padding-inline: 6px; font-size: 11px; }
 }
 
 .top-actions { display:flex; gap:12px; align-items:center; }

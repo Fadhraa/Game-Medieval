@@ -87,7 +87,7 @@ class Kira extends Healer {
   drawProcedural(ctx, feet) {
     ctx.save();
     ctx.translate(Math.round(this.x), Math.round(feet));
-    ctx.scale(this.side, 1);
+    ctx.scale(this.facing ?? this.side, 1);
     const draw = (c, a, b, w, h) => {
       ctx.fillStyle = c;
       ctx.fillRect(a, b, w, h);

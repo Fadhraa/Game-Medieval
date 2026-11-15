@@ -42,6 +42,43 @@ const Constants = {
     attackSpeedMultiplier: 1.3
   },
 
+  DEFEND: {
+    detectRange: 100,
+    minX: 120,
+    maxMarginFromEnemyBase: 40,
+    groundToleranceTop: 34,
+    groundToleranceBottom: 22,
+    heroKinds: ["knight", "wizard", "kira", "james", "lynce"],
+    formationBackOffsets: {
+      knight: 0,
+      james: 0,
+      lynce: 65,
+      wizard: 85,
+      kira: 110
+    },
+    labels: {
+      knight: "Ksatria",
+      wizard: "Wizard",
+      kira: "Kira",
+      james: "James",
+      lynce: "Lynce"
+    },
+    shortTags: {
+      knight: "K",
+      wizard: "W",
+      kira: "R",
+      james: "J",
+      lynce: "L"
+    },
+    colors: {
+      knight: "#6bc2a8",
+      wizard: "#9e98f5",
+      kira: "#7dd4f0",
+      james: "#eab864",
+      lynce: "#e88868"
+    }
+  },
+
   FIREBALL_SPEED: 220,
   FIREBALL_SPLASH: 5,
   FIREBALL_RADIUS: 34,
