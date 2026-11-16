@@ -49,6 +49,10 @@ const Constants = {
     groundToleranceTop: 34,
     groundToleranceBottom: 22,
     heroKinds: ["knight", "wizard", "kira", "james", "lynce"],
+    roleGroups: {
+      melee: ["knight", "james"],
+      ranged: ["wizard", "kira", "lynce"]
+    },
     formationBackOffsets: {
       knight: 0,
       james: 0,
@@ -118,6 +122,10 @@ const Constants = {
       witcher: "assets/sprites/units/witcher.png",
       hollowMask: "assets/sprites/units/hollow-mask-animations.png",
       commander: "assets/sprites/units/commander.png",
+      goblinQueen: "assets/sprites/units/goblin-queen.png?v=2",
+      goblinQueenBuff: "assets/sprites/units/goblin-queen-buff.png",
+      goblinQueenMissile: "assets/sprites/projectiles/goblin-queen-missile.png",
+      goblinQueenImpact: "assets/sprites/projectiles/goblin-queen-impact.png",
       rootGiant: "assets/sprites/units/root-giant.png",
       frostGolem: "assets/sprites/units/frost-golem.png",
       frostGolemAnimation: "assets/sprites/units/frost-golem-animation.png",
@@ -136,6 +144,8 @@ const Constants = {
       healingAura: "assets/sprites/projectiles/healing_kira.png",
       jamesShieldBash: "assets/sprites/effects/james-shield-bash.png",
       baseSpeedAura: "assets/sprites/effects/base-speed-aura.png",
+      enemyDefeatPoof: "assets/sprites/effects/enemy-defeat-poof.png",
+      heroDefeatSoul: "assets/sprites/effects/hero-defeat-soul.png",
       rootGiantRoots: "assets/sprites/projectiles/root-giant-roots.png"
     },
     sfx: {

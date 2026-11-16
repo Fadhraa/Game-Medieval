@@ -37,7 +37,7 @@ class ArcherGoblin extends Unit {
   performAttack(target, base, battle) {
     const muzzleX = Math.min(this.x, Math.max(target?.x ?? base.x, this.x - 11));
     const muzzleY = Constants.GROUND_Y + this.depth - 18;
-    battle.spawnProjectile(new GoblinBolt(muzzleX, muzzleY, this.damage));
+    battle.spawnProjectile(new GoblinBolt(muzzleX, muzzleY, this.getAttackDamage(battle)));
   }
 
   getPose(time) {

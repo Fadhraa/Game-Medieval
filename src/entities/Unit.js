@@ -23,6 +23,7 @@ class Unit extends Entity {
     this.slowedUntil = 0;
     this.frostStacks = 0;
     this.frozenUntil = 0;
+    this.goblinQueenBuffUntil = 0;
     this.engaged = false;
     this.attackTarget = null;
     this.hasAttackSlot = false;
@@ -101,11 +102,21 @@ class Unit extends Entity {
     return true; // Subclasses can override (e.g. Knight slot limits)
   }
 
+  hasGoblinQueenBuff(battle) {
+    return this.goblinQueenBuffUntil > (battle?.elapsed ?? 0);
+  }
+
+  getAttackDamage(battle) {
+    const multiplier = this.hasGoblinQueenBuff(battle) ? GoblinQueen.damageMultiplier : 1;
+    return this.damage * multiplier;
+  }
+
   performAttack(target, base, battle) {
+    const damage = this.getAttackDamage(battle);
     if (target) {
-      target.takeDamage(this.damage, battle, { type: "physical" });
+      target.takeDamage(damage, battle, { type: "physical" });
     } else {
-      battle.damageBase(this.side, this.damage);
+      battle.damageBase(this.side, damage);
     }
     window.audioManager?.playHit(this.kind);
   }
@@ -135,7 +146,8 @@ class Unit extends Entity {
       move:
         (this.slowedUntil > (battle?.elapsed ?? 0) ? 0.65 : 1) *
         (buffed ? Constants.BASE_SKILL.moveSpeedMultiplier : 1),
-      attack: buffed ? Constants.BASE_SKILL.attackSpeedMultiplier : 1
+      attack: (buffed ? Constants.BASE_SKILL.attackSpeedMultiplier : 1) *
+        (this.hasGoblinQueenBuff(battle) ? GoblinQueen.attackSpeedMultiplier : 1)
     };
   }
 
@@ -160,6 +172,17 @@ class Unit extends Entity {
 
     const cmd = this.side === 1 ? this.command : null;
 
+    if (cmd?.retreating) {
+      const travel = Math.min(Math.max(0, this.x - cmd.guardX), this.speed * delta * move);
+      this.x -= travel;
+      this.walk += travel / this.speed;
+      this.facing = -1;
+      this.moving = travel > 0;
+      this.engaged = false;
+      if (this.x <= cmd.guardX) cmd.retreating = false;
+      return;
+    }
+
     if (this.engaged) {
       const target = distance <= this.reach ? opponent : null;
       this.facing = target
@@ -178,7 +201,9 @@ class Unit extends Entity {
         this.swing = 0;
       }
     } else if (cmd) {
-      const threat = this.findDefendThreat(battle, cmd);
+      const boss = battle.boss;
+      const defendingOutsideWarning = boss?.skillWarningActive && cmd.guardX < boss.skillStartX;
+      const threat = defendingOutsideWarning ? null : this.findDefendThreat(battle, cmd);
       const travel = this.speed * delta * move;
       if (threat) {
         if (threat.x < this.x) {

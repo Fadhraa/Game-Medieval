@@ -311,6 +311,7 @@ class Renderer {
     }
 
     if (battle.mode !== "ready") {
+      if (battle.boss?.skillWarningActive) this.drawBossSkillWarning(ctx, battle.boss);
       this.drawGuardFlags(ctx, battle, time, uiState);
     }
 
@@ -349,7 +350,9 @@ class Renderer {
         unit.drawSummon(ctx, this.ground, time, this.sprites.minotaur, witcherEffects);
       }
       const poseTime = unit.frozenUntil > battle.elapsed ? unit.frozenUntil : time;
-      const effectSheet = frostBoss ? this.sprites.frostNova : this.sprites.rootGiantRoots;
+      const effectSheet = unit instanceof GoblinQueen ? this.sprites.goblinQueenBuff
+        : frostBoss ? this.sprites.frostNova : this.sprites.rootGiantRoots;
+      if (unit.hasGoblinQueenBuff(battle)) this.drawGoblinQueenBuff(ctx, unit, battle.elapsed);
       unit.draw(ctx, this.ground, poseTime, sheet, effectSheet);
       if (battle.hasBaseSpeedBuff(unit)) {
         this.drawBaseSpeedAura(ctx, unit, time, speedAuraSheet, "front");
@@ -377,6 +380,8 @@ class Renderer {
     for (const projectile of battle.projectiles) {
       if (projectile instanceof LightningBolt) {
         projectile.draw(ctx, time, lightningSheet);
+      } else if (projectile instanceof GoblinQueenMissile) {
+        projectile.draw(ctx, time, this.sprites.goblinQueenMissile, this.sprites.goblinQueenImpact);
       } else if (projectile instanceof WitcherBolt) {
         projectile.draw(ctx, time, witcherEffects);
       } else if (projectile instanceof GoblinBolt) {
@@ -530,6 +535,23 @@ class Renderer {
     }
 
     const selectedUnits = active ? battle.getSelectedUnits?.() ?? [] : [];
+    const roleCounts = battle.getAliveRoleCounts?.() ?? { combat: 0, melee: 0, ranged: 0, farmers: 0, total: 0 };
+    if (ui.countAllHeroes) textValue(ui.countAllHeroes, String(roleCounts.combat));
+    if (ui.countMeleeHeroes) textValue(ui.countMeleeHeroes, String(roleCounts.melee));
+    if (ui.countRangedHeroes) textValue(ui.countRangedHeroes, String(roleCounts.ranged));
+    if (ui.aliveSummary) textValue(ui.aliveSummary, `Hidup: ${roleCounts.total} (${roleCounts.farmers} Petani)`);
+    for (const [btn, role, count] of [
+      [ui.selectAllHeroes, "all", roleCounts.combat],
+      [ui.selectMeleeHeroes, "melee", roleCounts.melee],
+      [ui.selectRangedHeroes, "ranged", roleCounts.ranged]
+    ]) {
+      if (!btn) continue;
+      const isActive = active && Boolean(battle.matchesSelectedRole?.(role));
+      btn.disabled = !active || count === 0;
+      btn.classList.toggle("is-active", isActive);
+      btn.setAttribute("aria-pressed", String(isActive));
+    }
+
     const showCmdBar = active && selectedUnits.length > 0;
     if (ui.deployCards && ui.selectionCommandBar) {
       ui.deployCards.hidden = showCmdBar;
@@ -551,6 +573,55 @@ class Renderer {
         }
       }
     }
+  }
+
+  drawGoblinQueenBuff(ctx, unit, time) {
+    const x = Math.round(unit.x);
+    const y = Math.round(this.ground + unit.depth + 1);
+    const radius = Math.max(7, Math.round(unit.getRenderConfig().shadowWidth / 2));
+    const fade = Math.min(1, (unit.goblinQueenBuffUntil - time) * 3);
+    ctx.save();
+    ctx.globalAlpha = fade * (0.78 + 0.16 * Math.sin(time * 8));
+    ctx.strokeStyle = "#8ef4af";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(x, y, radius, 4, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.fillStyle = "#ffe08a";
+    ctx.fillRect(x - 1, y + 3, 3, 2);
+    ctx.restore();
+  }
+
+  drawBossSkillWarning(ctx, boss) {
+    const start = Math.round(boss.skillStartX);
+    const end = Math.round(boss.x);
+    const width = end - start;
+    const y = this.ground - 4;
+    const remaining = ArenaBoss.skillWarningDuration - boss.actionAge;
+
+    ctx.save();
+    ctx.fillStyle = boss.profile.indicator;
+    ctx.globalAlpha = 0.24 + (1 - remaining / ArenaBoss.skillWarningDuration) * 0.25;
+    ctx.fillRect(start, y, width, 19);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#251c27";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(start, y, width, 19);
+    ctx.strokeStyle = boss.profile.indicator;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(start, y, width, 19);
+    ctx.fillRect(start - 1, y - 3, 3, 25);
+    ctx.fillRect(end - 1, y - 3, 3, 25);
+    ctx.fillRect(start, y + 17, width * remaining / ArenaBoss.skillWarningDuration, 2);
+
+    ctx.textAlign = "center";
+    ctx.font = "bold 10px monospace";
+    ctx.strokeStyle = "#191621";
+    ctx.lineWidth = 3;
+    ctx.fillStyle = "#fff9ec";
+    ctx.strokeText(boss.profile.skillWarning, start + width / 2, y + 31);
+    ctx.fillText(boss.profile.skillWarning, start + width / 2, y + 31);
+    ctx.restore();
   }
 
   isValidFlagPoint(worldX, worldY) {
@@ -868,6 +939,9 @@ class Renderer {
   }
 
   getPortraitConfig(kind) {
+    if (kind === "goblinQueen") {
+      return { ...GoblinQueen.spriteGeometry, portraitX: 10, portraitScale: 0.21 };
+    }
     if (kind === "wizard") {
       return { frameWidth: 48, frameHeight: 48, originX: 23, feetOrigin: 43, portraitX: 12, portraitScale: 0.55 };
     }

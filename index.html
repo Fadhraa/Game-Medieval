@@ -37,6 +37,7 @@
 <script src="src/entities/Witcher.js" defer></script>
 <script src="src/entities/Commander.js" defer></script>
 <script src="src/entities/ArenaBoss.js" defer></script>
+<script src="src/entities/GoblinQueen.js" defer></script>
 <script src="src/entities/Farm.js" defer></script>
 
 <!-- Battle Engine & Renderer -->
@@ -209,6 +210,21 @@
           <span class="base-skill-title">Skill Benteng</span>
           <span class="base-skill-state" id="baseSkillLabel">Siap [Q]</span>
         </button>
+      </div>
+      <div class="quick-select-bar" id="quickSelectBar" role="group" aria-label="Pilih cepat pasukan berdasarkan peran">
+        <div class="quick-select-group">
+          <span class="quick-select-label">Pilih Cepat:</span>
+          <button class="quick-select-btn" id="selectAllHeroes" type="button" aria-pressed="false" aria-keyshortcuts="A" title="Pilih semua hero tempur hidup [A]" disabled>
+            Semua <kbd aria-hidden="true">A</kbd> <span class="quick-select-count" id="countAllHeroes">0</span>
+          </button>
+          <button class="quick-select-btn" id="selectMeleeHeroes" type="button" aria-pressed="false" aria-keyshortcuts="Z" title="Pilih hero barisan depan: Ksatria &amp; James [Z]" disabled>
+            Melee <kbd aria-hidden="true">Z</kbd> <span class="quick-select-count" id="countMeleeHeroes">0</span>
+          </button>
+          <button class="quick-select-btn" id="selectRangedHeroes" type="button" aria-pressed="false" aria-keyshortcuts="X" title="Pilih hero jarak jauh &amp; pendukung: Wizard, Kira, Lynce [X]" disabled>
+            Ranged <kbd aria-hidden="true">X</kbd> <span class="quick-select-count" id="countRangedHeroes">0</span>
+          </button>
+        </div>
+        <span class="quick-select-alive" id="aliveSummary">Hidup: 0 (0 Petani)</span>
       </div>
       <div class="deploy-cards" id="deployCards">
         <button class="deploy-card" id="summonFarmer" type="button" aria-label="Panggil Petani Gandum, 1 roti" aria-describedby="farmerLabel" aria-keyshortcuts="1" disabled>

@@ -86,6 +86,63 @@ class ShieldBashImpact extends BurstEffect {
   }
 }
 
+class EnemyDefeatPoof extends BurstEffect {
+  spriteKey = "enemyDefeatPoof";
+
+  constructor(x, y, scale = 1) {
+    super(x, y, 1.1);
+    this.scale = scale;
+  }
+
+  draw(ctx, spriteSheet) {
+    if (!spriteSheet?.complete || !spriteSheet.naturalWidth) return;
+    const width = 56;
+    const height = 46;
+    const frame = Math.min(21, Math.floor(22 * (1 - this.life / this.maxLife)));
+    const drawW = Math.round(width * this.scale);
+    const drawH = Math.round(height * this.scale);
+    ctx.drawImage(
+      spriteSheet,
+      (frame % 6) * width,
+      Math.floor(frame / 6) * height,
+      width,
+      height,
+      Math.round(this.x - 28 * this.scale),
+      Math.round(this.y - 40 * this.scale),
+      drawW,
+      drawH
+    );
+  }
+}
+
+class HeroDefeatSoul extends BurstEffect {
+  spriteKey = "heroDefeatSoul";
+
+  constructor(x, y) {
+    super(x, y, 1.6);
+  }
+
+  draw(ctx, spriteSheet) {
+    if (!spriteSheet?.complete || !spriteSheet.naturalWidth) return;
+    const width = 48;
+    const height = 70;
+    const frame = Math.min(27, Math.floor(28 * (1 - this.life / this.maxLife)));
+    ctx.drawImage(
+      spriteSheet,
+      (frame % 7) * width,
+      Math.floor(frame / 7) * height,
+      width,
+      height,
+      Math.round(this.x - 24),
+      Math.round(this.y - 63),
+      width,
+      height
+    );
+  }
+}
+
 window.Particle = Particle;
 window.BurstEffect = BurstEffect;
+window.EnemyDefeatPoof = EnemyDefeatPoof;
+window.HeroDefeatSoul = HeroDefeatSoul;
 

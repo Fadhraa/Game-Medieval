@@ -6,7 +6,7 @@ const Progress = {
   maxFileBytes: 16384,
   storageKey: "roti-benteng-progress-v1",
   heroUnlockCosts: Object.freeze({ james: 50, lynce: 70, wizard: 90, kira: 120 }),
-  killReward: { goblin: 1, minotaur: 5, archer_goblin: 1, witcher: 10, hollowMask: 10, commander: 50, rootGiant: 70, frostGolem: 90 },
+  killReward: { goblin: 1, minotaur: 5, archer_goblin: 1, witcher: 10, hollowMask: 10, goblinQueen: 25, commander: 50, rootGiant: 70, frostGolem: 90 },
   maxRank: 7,
   secondPlotCost: 80,
   historyLimit: 5,

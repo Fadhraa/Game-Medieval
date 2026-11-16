@@ -58,7 +58,8 @@ const Campaign = [
         id: 6,
         victoryCoins: 100,
         name: "Pengepungan",
-        briefing: "Witcher berlindung di belakang monster. Tembus barisan depan sebelum ia memanggil Minotaur yang lebih kuat.",
+        boss: "goblinQueen",
+        briefing: "Ratu Goblin muncul saat HP markas turun ke 65%. Lingkaran sihirnya memperkuat damage dan kecepatan serang monster selama 6 detik. Kalahkan Ratu dan hancurkan markas.",
         enemies: { first: 8, interval: 4.8, order: "MGAMGAG" }
       }
     ]
@@ -150,7 +151,7 @@ const Campaign = [
         id: 15,
         victoryCoins: 165,
         name: "Jantung Rawa",
-        briefing: "Raksasa Akar muncul saat HP markas mencapai 65%. Akarnya menarik pasukan hingga batas serang Wizard ke garis depan. Kalahkan bos dan hancurkan markas.",
+        briefing: "Raksasa Akar muncul saat HP markas mencapai 65%. Pindahkan pasukan melewati batas penanda jingga dengan bendera sebelum akar menarik mereka. Bos memiliki resistensi sihir 16%. Kalahkan bos dan hancurkan markas.",
         boss: "rootGiant",
         enemies: { first: 8, interval: 3.7, order: "MGAAMG" }
       }
@@ -182,7 +183,7 @@ const Campaign = [
         id: 18,
         victoryCoins: 185,
         name: "Takhta Es",
-        briefing: "Golem Es muncul saat HP markas mencapai 70%. Pukulan memberi 1 Frost, gelombang es memberi 2. Pada 3 Frost, hero menerima 200 damage dan membeku 1,5 detik. Kalahkan bos dan hancurkan markas.",
+        briefing: "Golem Es muncul saat HP markas mencapai 70%. Tarik pasukan keluar dari penanda biru sebelum Frost Nova. Pukulan memberi 1 Frost dan Nova memberi 2. Pada 3 Frost, hero menerima 200 damage dan membeku 1,5 detik. Bos memiliki resistensi fisik 10%. Kalahkan bos dan hancurkan markas.",
         boss: "frostGolem",
         enemies: { first: 7, interval: 3.4, order: "MAMAGA", witcherFirst: 20, hollowMaskFirst: 52 }
       }

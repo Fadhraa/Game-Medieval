@@ -100,8 +100,9 @@ class HollowMask extends Unit {
   updateSlash(delta, battle) {
     const slash = this.slash;
     this.flash = Math.max(0, this.flash - delta);
-    this.cooldown = Math.max(0, this.cooldown - delta);
-    slash.age += delta;
+    const { attack } = this.getSpeedMultipliers(battle);
+    this.cooldown = Math.max(0, this.cooldown - delta * attack);
+    slash.age += delta * attack;
     if (slash.ambush && !slash.hit && slash.target.hp > 0) {
       const xLimit = Math.min(slash.origin + 15, slash.target.x - 8);
       this.x = Math.max(this.x, Math.min(xLimit, this.x + 58 * delta));
@@ -110,14 +111,14 @@ class HollowMask extends Unit {
       slash.hit = true;
       const target = slash.target;
       if (target?.hp > 0 && Math.abs(target.x - this.x) <= this.reach) {
-        target.takeDamage(this.damage, battle, { type: "physical" });
+        target.takeDamage(this.getAttackDamage(battle), battle, { type: "physical" });
         for (let i = 0; i < 8; i++) {
           battle.spawnParticle(target.x, Constants.GROUND_Y + target.depth - 18,
             this.facing * (10 + i * 7), -55 + i * 8, 0.19 + i * 0.018,
             i % 3 === 0 ? "#f6dfff" : "#b96df9", i % 3 === 0 ? 2 : 1);
         }
       } else if (!target && this.findOpponent(battle).baseDistance <= this.reach) {
-        battle.damageBase(this.side, this.damage);
+        battle.damageBase(this.side, this.getAttackDamage(battle));
       }
     }
     if (slash.age >= 6 * HollowMask.slashFrameSeconds) this.slash = null;

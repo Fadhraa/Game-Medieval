@@ -268,6 +268,63 @@ class Battle {
     this.selectedUnits = [];
   }
 
+  getCombatHeroesByRole(role = "all") {
+    const groups = Constants.DEFEND.roleGroups;
+    const kinds = role === "melee" ? groups.melee : role === "ranged" ? groups.ranged : null;
+    return this.units.filter((unit) => {
+      if (!unit || unit.side !== 1 || unit.kind === "farmer" || unit.hp <= 0 || unit.active === false) {
+        return false;
+      }
+      return !kinds || kinds.includes(unit.kind);
+    });
+  }
+
+  matchesSelectedRole(role) {
+    const selected = this.getSelectedUnits();
+    const group = this.getCombatHeroesByRole(role);
+    if (!group.length || selected.length !== group.length) return false;
+    const set = new Set(selected);
+    return group.every((unit) => set.has(unit));
+  }
+
+  selectRoleGroup(role = "all", { additive = false } = {}) {
+    const group = this.getCombatHeroesByRole(role);
+    if (!group.length) {
+      if (!additive) this.clearSelection();
+      return this.getSelectedUnits();
+    }
+    if (additive) {
+      const current = this.getSelectedUnits();
+      const currentSet = new Set(current);
+      const allSelected = group.every((unit) => currentSet.has(unit));
+      if (allSelected) {
+        const removeSet = new Set(group);
+        return this.setSelectedUnits(current.filter((unit) => !removeSet.has(unit)));
+      }
+      return this.setSelectedUnits([...current, ...group]);
+    }
+    if (this.matchesSelectedRole(role)) {
+      this.clearSelection();
+      return [];
+    }
+    return this.setSelectedUnits(group);
+  }
+
+  getAliveRoleCounts() {
+    let melee = 0;
+    let ranged = 0;
+    let farmers = 0;
+    const groups = Constants.DEFEND.roleGroups;
+    for (const unit of this.units) {
+      if (!unit || unit.side !== 1 || unit.hp <= 0 || unit.active === false) continue;
+      if (unit.kind === "farmer") farmers++;
+      else if (groups.melee.includes(unit.kind)) melee++;
+      else if (groups.ranged.includes(unit.kind)) ranged++;
+    }
+    const combat = melee + ranged;
+    return { combat, melee, ranged, farmers, total: combat + farmers };
+  }
+
   pruneGuardFlags() {
     const activeIds = new Set();
     for (const unit of this.units) {
@@ -305,7 +362,7 @@ class Battle {
         Constants.BASES.hero.x + 10,
         flagX - backOffset - stagger
       );
-      unit.command = { flagId, flagX, guardX };
+      unit.command = { flagId, flagX, guardX, retreating: guardX < unit.x - 2 };
       assignedColors.add(Constants.DEFEND.colors[unit.kind] ?? "#ffcf75");
     }
 
@@ -416,10 +473,10 @@ class Battle {
 
   checkBossArrival() {
     if (!this.bossKind || this.boss) return;
-    const threshold = this.bossKind === "commander" ? Commander.summonThreshold :
-      ArenaBoss.profiles[this.bossKind].threshold;
+    const Boss = { commander: Commander, goblinQueen: GoblinQueen }[this.bossKind];
+    const threshold = Boss?.summonThreshold ?? ArenaBoss.profiles[this.bossKind].threshold;
     if (this.enemyHp <= Constants.BASES.enemy.hp * threshold + 1e-8) {
-      this.boss = this.bossKind === "commander" ? new Commander() : new ArenaBoss(this.bossKind);
+      this.boss = Boss ? new Boss() : new ArenaBoss(this.bossKind);
       this.units.push(this.boss);
     }
   }
@@ -511,7 +568,17 @@ class Battle {
     // Garbage collection of dead/inactive entities
     this.units = this.units.filter((unit) => {
       if (unit.active && unit.hp > 0) return true;
-      if (unit.hp <= 0 && Object.hasOwn(this.kills, unit.kind)) this.kills[unit.kind]++;
+      if (unit.hp <= 0) {
+        if (Object.hasOwn(this.kills, unit.kind)) this.kills[unit.kind]++;
+        if (unit !== this.boss) {
+          const y = Constants.GROUND_Y + (unit.depth ?? 0);
+          if (unit.side === 1 && typeof HeroDefeatSoul === "function") {
+            this.bursts.push(new HeroDefeatSoul(unit.x, y));
+          } else if (unit.side === -1 && typeof EnemyDefeatPoof === "function") {
+            this.bursts.push(new EnemyDefeatPoof(unit.x, y, unit.kind === "minotaur" ? 1.25 : 1));
+          }
+        }
+      }
       return false;
     });
     this.getSelectedUnits();

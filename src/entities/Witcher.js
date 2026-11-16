@@ -43,7 +43,8 @@ class Witcher extends Healer {
   }
 
   update(delta, battle) {
-    this.cooldown = Math.max(0, this.cooldown - delta);
+    const { attack } = this.getSpeedMultipliers(battle);
+    this.cooldown = Math.max(0, this.cooldown - delta * attack);
     this.healCooldown = Math.max(0, this.healCooldown - delta);
     this.summonCooldown = Math.max(0, this.summonCooldown - delta);
     this.flash = Math.max(0, this.flash - delta);
@@ -51,7 +52,7 @@ class Witcher extends Healer {
 
     if (this.cast) {
       const previousAge = this.cast.age;
-      this.cast.age += delta;
+      this.cast.age += this.cast.kind === "attack" ? delta * attack : delta;
       const summoning = this.cast.kind === "summon";
       const duration = summoning ? Witcher.summonDuration : 6 * Witcher.frameSeconds;
       const finished = this.cast.age + 1e-8 >= duration;
@@ -126,7 +127,7 @@ class Witcher extends Healer {
       if (distance > this.reach && baseDistance > this.reach) return;
       const targetX = distance <= this.reach ? opponent.x : Constants.BASES.hero.x;
       const muzzleX = Math.min(this.x, Math.max(targetX, this.x - 20));
-      battle.spawnProjectile(new WitcherBolt(muzzleX, feet - 23, this.damage));
+      battle.spawnProjectile(new WitcherBolt(muzzleX, feet - 23, this.getAttackDamage(battle)));
       window.audioManager?.playHit("witcherLaunch");
     }
   }

@@ -1,6 +1,8 @@
 "use strict";
 
 class ArenaBoss extends Unit {
+  static skillWarningDuration = 3;
+
   static profiles = {
     rootGiant: {
       name: "Raksasa Akar",
@@ -16,6 +18,9 @@ class ArenaBoss extends Unit {
       skillDamage: 50,
       stunDuration: 0.8,
       skillType: "physical",
+      skillReleaseAt: 0.36,
+      skillWarning: "Tarikan Akar",
+      magicResistance: 0.16,
       indicator: "#efac64",
       spriteSheet: {
         frameWidth: 96,
@@ -46,6 +51,9 @@ class ArenaBoss extends Unit {
       skillRange: 108,
       skillDamage: 140,
       skillType: "magic",
+      skillReleaseAt: 0.48,
+      skillWarning: "Frost Nova",
+      physicalResistance: 0.10,
       skillSpread: 0.5,
       slowDuration: 3,
       freezeStacks: 3,
@@ -120,9 +128,25 @@ class ArenaBoss extends Unit {
     }
   }
 
-  takeDamage(amount, battle, options) {
+  get skillWarningActive() {
+    return this.action === "skill" && this.actionAge < ArenaBoss.skillWarningDuration;
+  }
+
+  get skillStartX() {
+    return this.x - this.profile.skillRange;
+  }
+
+  skillAnimationAge(age = this.actionAge) {
+    const windupHold = ArenaBoss.skillWarningDuration - this.profile.skillReleaseAt;
+    return Math.max(0, age - windupHold);
+  }
+
+  takeDamage(amount, battle, { type = "physical", heavy = false } = {}) {
     if (this.hp <= 0) return;
-    super.takeDamage(amount, battle, options);
+    const resistance = type === "magic" ? this.profile.magicResistance
+      : type === "physical" ? this.profile.physicalResistance
+      : 0;
+    super.takeDamage(amount * (1 - (resistance ?? 0)), battle, { heavy });
     if (this.hp === 0) {
       this.setAction("defeated");
       this.pulledHeroes = [];
@@ -153,12 +177,15 @@ class ArenaBoss extends Unit {
       const previous = this.actionAge;
       const frameSeconds = spriteSheet.frameSeconds[this.action];
       this.actionAge += delta;
-      if (this.action === "skill" && this.actionAge >= frameSeconds * 2) {
-        this.updateFrostNova(battle, previous);
-      } else if (this.action === "attack1" && previous < frameSeconds * 3 && this.actionAge >= frameSeconds * 3) {
-        this.hitWithFrostPunch(battle, baseDistance);
+      if (this.action === "skill") {
+        if (!this.skillWarningActive) this.updateFrostNova(battle, previous);
+        if (this.skillAnimationAge() >= frameSeconds * spriteSheet.frames) this.setAction(null);
+      } else {
+        if (previous < frameSeconds * 3 && this.actionAge >= frameSeconds * 3) {
+          this.hitWithFrostPunch(battle, baseDistance);
+        }
+        if (this.actionAge >= frameSeconds * spriteSheet.frames) this.setAction(null);
       }
-      if (this.actionAge >= frameSeconds * spriteSheet.frames) this.setAction(null);
       return;
     }
 
@@ -200,8 +227,7 @@ class ArenaBoss extends Unit {
   }
 
   frostNovaProgress(age) {
-    const release = this.profile.spriteSheet.frameSeconds.skill * 2;
-    const elapsed = age - release;
+    const elapsed = age - ArenaBoss.skillWarningDuration;
     return Math.max(0, Math.min(1, elapsed / this.profile.skillSpread));
   }
 
@@ -210,7 +236,7 @@ class ArenaBoss extends Unit {
   }
 
   updateFrostNova(battle, previousAge) {
-    const release = this.profile.spriteSheet.frameSeconds.skill * 2;
+    const release = ArenaBoss.skillWarningDuration;
     if (previousAge >= release + this.profile.skillSpread) return;
     if (previousAge < release) window.audioManager?.playHit("minotaur");
     const previousRange = this.frostNovaRange(previousAge);
@@ -312,11 +338,12 @@ class ArenaBoss extends Unit {
     }
 
     if (this.action === "skill") {
-      const latchAt = 0.36;
+      const latchAt = this.profile.skillReleaseAt;
       const slamAt = 0.92;
       const totalDuration = ss.frames * ss.frameSeconds.skill;
+      const age = this.skillAnimationAge();
 
-      if (!this.skillLatched && this.actionAge >= latchAt) {
+      if (!this.skillLatched && !this.skillWarningActive) {
         this.skillLatched = true;
         const caught = battle.units
           .filter(
@@ -324,8 +351,8 @@ class ArenaBoss extends Unit {
               hero.side === 1 &&
               hero.hp > 0 &&
               hero.kind !== "farmer" &&
-              this.x - hero.x >= 0 &&
-              this.x - hero.x <= this.profile.skillRange,
+              hero.x >= this.skillStartX &&
+              hero.x <= this.x,
           )
           .sort((a, b) => b.x - a.x);
 
@@ -342,7 +369,7 @@ class ArenaBoss extends Unit {
           entry.unit.moving = false;
           entry.unit.stunnedUntil = Math.max(
             entry.unit.stunnedUntil,
-            battle.elapsed + (slamAt - latchAt),
+            battle.elapsed + Math.max(0, slamAt - age),
           );
         }
       }
@@ -350,7 +377,7 @@ class ArenaBoss extends Unit {
       if (this.skillLatched && !this.skillHitDone) {
         const progress = Math.min(
           1,
-          Math.max(0, (this.actionAge - latchAt) / (slamAt - latchAt)),
+          Math.max(0, (age - latchAt) / (slamAt - latchAt)),
         );
         const ease = progress * progress * (3 - 2 * progress);
         for (const entry of this.pulledHeroes) {
@@ -361,7 +388,7 @@ class ArenaBoss extends Unit {
         }
       }
 
-      if (!this.skillHitDone && this.actionAge >= slamAt) {
+      if (!this.skillHitDone && age >= slamAt) {
         this.skillHitDone = true;
         const impacted = new Set();
         for (const entry of this.pulledHeroes) {
@@ -413,7 +440,7 @@ class ArenaBoss extends Unit {
         }
       }
 
-      if (this.actionAge >= totalDuration) {
+      if (age >= totalDuration) {
         this.pulledHeroes = [];
         this.setAction(null);
       }
@@ -437,9 +464,10 @@ class ArenaBoss extends Unit {
     }
     if (this.action) {
       const frameSec = ss.frameSeconds[this.action] ?? 0.1;
+      const age = this.action === "skill" ? this.skillAnimationAge() : this.actionAge;
       const frame = Math.min(
         ss.frames - 1,
-        Math.floor(this.actionAge / frameSec),
+        Math.floor(age / frameSec),
       );
       return [rows[this.action], frame];
     }
@@ -455,12 +483,12 @@ class ArenaBoss extends Unit {
   drawRootPull(ctx, ground, time, rootSheet) {
     const feet = ground + this.depth;
     const bossX = Math.round(this.x);
-    const maxX = bossX - this.profile.skillRange;
-    const age = this.actionAge;
+    const age = this.skillAnimationAge();
+    if (age <= 0) return;
 
     ctx.save();
-    // 1) Telegraph / underground root eruption along ground up to 125px in front (Wizard max reach)
-    const reachProgress = age < 0.36 ? Math.min(1, age / 0.32) : 1;
+    // The root erupts in front of the boss just before it snares units.
+    const reachProgress = Math.min(1, age / 0.32);
     const tipX = Math.round(
       bossX - 18 - (this.profile.skillRange - 18) * reachProgress,
     );
@@ -519,7 +547,7 @@ class ArenaBoss extends Unit {
       }
 
       // 2) Taut pulling root cables + root bindings around each latched hero during yank
-      if (age >= 0.36 && age <= 1.05) {
+      if (this.skillLatched && age <= 1.05) {
         const handX = bossX - 20;
         const handY = Math.round(feet - 22);
         for (const entry of this.pulledHeroes) {
@@ -594,7 +622,7 @@ class ArenaBoss extends Unit {
         }
       }
 
-      if (age >= 0.36 && age <= 1.05) {
+      if (this.skillLatched && age <= 1.05) {
         const handX = bossX - 20;
         const handY = Math.round(feet - 22);
         for (const entry of this.pulledHeroes) {
@@ -625,29 +653,14 @@ class ArenaBoss extends Unit {
       }
     }
 
-    // Subtle ground range marker at the outer 125px edge during windup
-    if (age < 0.38) {
-      ctx.fillStyle = this.profile.indicator;
-      ctx.globalAlpha = 0.45 + Math.sin(time * 24) * 0.2;
-      ctx.fillRect(maxX, Math.round(feet - 1), bossX - maxX, 2);
-    }
     ctx.restore();
   }
 
-  drawFrostNova(ctx, feet, time, novaSheet) {
+  drawFrostNova(ctx, feet, novaSheet) {
     const x = Math.round(this.x);
-    const release = this.profile.spriteSheet.frameSeconds.skill * 2;
+    if (this.skillWarningActive || !novaSheet?.naturalWidth) return;
     const range = this.profile.skillRange;
-    if (this.actionAge < release) {
-      ctx.save();
-      ctx.globalAlpha = 0.5 + 0.18 * Math.sin(time * 22);
-      ctx.fillStyle = this.profile.indicator;
-      ctx.fillRect(x - range, Math.round(feet - 2), range, 2);
-      ctx.restore();
-      return;
-    }
-    if (!novaSheet?.naturalWidth) return;
-    const visualProgress = Math.min(1, (this.actionAge - release) / 0.8);
+    const visualProgress = Math.min(1, (this.actionAge - ArenaBoss.skillWarningDuration) / 0.8);
     const frame = Math.min(19, Math.floor(visualProgress * 20));
     const reached = Math.ceil(this.frostNovaRange(this.actionAge));
     if (reached === 0) return;
@@ -683,7 +696,7 @@ class ArenaBoss extends Unit {
       );
 
       if (this.action === "skill") {
-        if (this.kind === "frostGolem") this.drawFrostNova(ctx, feet, time, effectSheet);
+        if (this.kind === "frostGolem") this.drawFrostNova(ctx, feet, effectSheet);
         else this.drawRootPull(ctx, ground, time, effectSheet);
       }
 
@@ -704,20 +717,6 @@ class ArenaBoss extends Unit {
       );
       ctx.restore();
       return;
-    }
-
-    if (this.action === "skill") {
-      ctx.save();
-      ctx.globalAlpha =
-        this.actionAge < 0.9 ? 0.42 + Math.sin(time * 22) * 0.2 : 0.72;
-      ctx.fillStyle = this.profile.indicator;
-      ctx.fillRect(
-        x - this.profile.skillRange,
-        feet - 3,
-        this.profile.skillRange,
-        4,
-      );
-      ctx.restore();
     }
 
     ctx.save();

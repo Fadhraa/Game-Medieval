@@ -20,6 +20,13 @@ document.addEventListener("DOMContentLoaded", () => {
       "cameraHome",
       "cameraEnemy",
       "selectModeToggle",
+      "selectAllHeroes",
+      "selectMeleeHeroes",
+      "selectRangedHeroes",
+      "countAllHeroes",
+      "countMeleeHeroes",
+      "countRangedHeroes",
+      "aliveSummary",
       "deployCards",
       "selectionCommandBar",
       "selectionSummary",
@@ -336,6 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
       minotaur: { key: "minotaur", name: "Minotaur", role: "Tank Berat", isBoss: false },
       hollowMask: { key: "hollowMask", name: "Topeng Hampa", role: "Assassin Elite", isBoss: false },
       witcher: { key: "witcher", name: "Witcher", role: "Heal & Summon", isBoss: false },
+      goblinQueen: { key: "goblinQueen", name: "Ratu Goblin", role: "Bos Chapter 2", isBoss: true },
       commander: { key: "commander", name: "Panglima Mahkota Retak", role: "Bos Chapter 4", isBoss: true },
       rootGiant: { key: "rootGiant", name: "Raksasa Akar", role: "Bos Chapter 5", isBoss: true },
       frostGolem: { key: "frostGolem", name: "Golem Es", role: "Bos Chapter 6", isBoss: true }
@@ -1243,13 +1251,34 @@ document.addEventListener("DOMContentLoaded", () => {
   for (const [kind, button] of summonSlots) {
     button.addEventListener("click", () => summon(kind));
   }
+  function applyQuickRoleSelect(role, additive = false) {
+    if (battle.mode !== "playing") return;
+    const roleLabels = { all: "Semua pasukan", melee: "Barisan depan (Melee)", ranged: "Barisan belakang (Ranged)" };
+    const selected = battle.selectRoleGroup(role, { additive });
+    if (selected.length === 0) {
+      battleUiState.placingFlag = false;
+      syncFlagPlacementCursor();
+      if (ui.status) {
+        const available = battle.getCombatHeroesByRole(role).length;
+        ui.status.textContent = available > 0
+          ? "Pilihan pasukan dibatalkan."
+          : `Belum ada ${roleLabels[role]?.toLowerCase() ?? "pasukan"} yang hidup.`;
+      }
+    } else if (ui.status) {
+      ui.status.textContent = `${selected.length} pasukan dipilih (${roleLabels[role] ?? role}).`;
+    }
+    renderer.syncHud(battle, ui, battleUiState);
+  }
+  ui.selectAllHeroes?.addEventListener("click", (event) => applyQuickRoleSelect("all", event.shiftKey));
+  ui.selectMeleeHeroes?.addEventListener("click", (event) => applyQuickRoleSelect("melee", event.shiftKey));
+  ui.selectRangedHeroes?.addEventListener("click", (event) => applyQuickRoleSelect("ranged", event.shiftKey));
   ui.cmdAdvance?.addEventListener("click", () => {
     if (battle.mode !== "playing") return;
     battleUiState.placingFlag = false;
     syncFlagPlacementCursor();
-    const count = battle.commandSelectedAdvance();
-    if (ui.status && count > 0) {
-      ui.status.textContent = `${count} pasukan diperintahkan menyerang maju.`;
+    const selectedCount = battle.getSelectedUnits().length;
+    if (battle.commandSelectedAdvance() && ui.status) {
+      ui.status.textContent = `${selectedCount} pasukan diperintahkan menyerang maju.`;
     }
     renderer.syncHud(battle, ui, battleUiState);
   });
@@ -1312,6 +1341,15 @@ document.addEventListener("DOMContentLoaded", () => {
         event.preventDefault();
         renderer.syncHud(battle, ui, battleUiState);
       }
+      return;
+    }
+    const quickRoleKey = event.code === "KeyA" ? "all"
+      : event.code === "KeyZ" ? "melee"
+      : event.code === "KeyX" ? "ranged"
+      : null;
+    if (quickRoleKey) {
+      event.preventDefault();
+      applyQuickRoleSelect(quickRoleKey, event.shiftKey);
       return;
     }
     const numberKey = /^(?:Digit|Numpad)([1-6])$/.exec(event.code);
