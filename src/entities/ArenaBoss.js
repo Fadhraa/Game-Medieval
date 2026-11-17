@@ -703,7 +703,6 @@ class ArenaBoss extends Unit {
       ctx.save();
       ctx.translate(x, Math.round(feet));
       ctx.imageSmoothingEnabled = false;
-      if (this.flash > 0) ctx.filter = "brightness(1.55)";
       ctx.drawImage(
         sheet,
         frame * ss.frameWidth,
@@ -731,7 +730,6 @@ class ArenaBoss extends Unit {
       ctx.translate(0, -Math.abs(Math.sin(time * 10)) * 3);
       ctx.rotate(Math.sin(time * 10) * 0.035);
     }
-    if (this.flash > 0) ctx.filter = "brightness(1.55)";
     if (sheet?.naturalWidth) {
       const height = this.kind === "frostGolem" ? 82 : 76;
       const width = Math.round(

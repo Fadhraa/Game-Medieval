@@ -15,6 +15,7 @@ class LynceArrow extends Projectile {
         (unit) =>
           unit.side === -1 &&
           unit.hp > 0 &&
+          !unit.isUntargetable &&
           unit.x >= beforeX - 14 &&
           unit.x <= this.x + 8
       )
@@ -130,6 +131,7 @@ class LynceSkillArrow extends Projectile {
         (unit) =>
           unit.side === -1 &&
           unit.hp > 0 &&
+          !unit.isUntargetable &&
           !this.hitUnits.has(unit) &&
           unit.x >= beforeX - 14 &&
           unit.x <= this.x + 10

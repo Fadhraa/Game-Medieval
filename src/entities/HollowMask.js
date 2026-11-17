@@ -17,6 +17,15 @@ class HollowMask extends Unit {
     this.slash = null;
   }
 
+  get isUntargetable() {
+    return Boolean(this.shadow && (this.shadow.phase === "transit" || this.shadow.phase === "rise"));
+  }
+
+  takeDamage(amount, battle, options) {
+    if (this.isUntargetable) return;
+    super.takeDamage(amount, battle, options);
+  }
+
   getRenderConfig() {
     return { ...super.getRenderConfig(), ...HollowMask.spriteGeometry, nativeDirection: -1,
       barYOffset: 62, shadowWidth: 18 };

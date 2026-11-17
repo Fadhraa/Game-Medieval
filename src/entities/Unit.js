@@ -24,6 +24,10 @@ class Unit extends Entity {
     this.frostStacks = 0;
     this.frozenUntil = 0;
     this.goblinQueenBuffUntil = 0;
+    this.inMud = false;
+    this.poisoned = false;
+    this.poisonUntil = 0;
+    this.mudTickTimer = 0;
     this.engaged = false;
     this.attackTarget = null;
     this.hasAttackSlot = false;
@@ -55,7 +59,7 @@ class Unit extends Entity {
       this.reach <= 45;
 
     for (const other of battle.units) {
-      if (other === this || other.hp <= 0) continue;
+      if (other === this || other.hp <= 0 || other.isUntargetable) continue;
       if (other.side === this.side) continue;
       const ahead = (other.x - this.x) * this.side;
       if (ahead >= minimumDistance && ahead < distance) {
@@ -85,7 +89,7 @@ class Unit extends Entity {
     let bestDist = Infinity;
 
     for (const other of battle.units) {
-      if (other.side === this.side || other.hp <= 0) continue;
+      if (other.side === this.side || other.hp <= 0 || other.isUntargetable) continue;
       if (other.x < minGuardX || other.x > maxGuardX) continue;
       const dist = Math.abs(other.x - this.x);
       if (other.x < bestX - 1 || (Math.abs(other.x - bestX) <= 1 && dist < bestDist)) {
@@ -147,7 +151,8 @@ class Unit extends Entity {
         (this.slowedUntil > (battle?.elapsed ?? 0) ? 0.65 : 1) *
         (buffed ? Constants.BASE_SKILL.moveSpeedMultiplier : 1),
       attack: (buffed ? Constants.BASE_SKILL.attackSpeedMultiplier : 1) *
-        (this.hasGoblinQueenBuff(battle) ? GoblinQueen.attackSpeedMultiplier : 1)
+        (this.hasGoblinQueenBuff(battle) ? GoblinQueen.attackSpeedMultiplier : 1) *
+        (this.poisoned ? Constants.SWAMP_MUD.attackSpeedMultiplier : 1)
     };
   }
 
@@ -232,6 +237,9 @@ class Unit extends Entity {
           this.moving = false;
         }
       }
+    } else if (battle.outpost?.shouldHoldToCapture(this) && this !== battle.boss) {
+      this.facing = this.side;
+      this.moving = false;
     } else {
       this.facing = this.side;
       const travel = this.speed * delta * move;
@@ -257,7 +265,10 @@ class Unit extends Entity {
   draw(ctx, ground, time, spriteSheet) {
     const feet = ground + (this.depth ?? 0);
     const cfg = this.getRenderConfig();
-    const hasSheet = spriteSheet?.complete && spriteSheet.naturalWidth > 0;
+    const hasSheet =
+      spriteSheet instanceof HTMLCanvasElement
+        ? spriteSheet.width > 0
+        : Boolean(spriteSheet?.complete && spriteSheet.naturalWidth > 0);
 
     if (hasSheet) {
       const [row, frame] = this.getPose(time);
@@ -277,7 +288,6 @@ class Unit extends Entity {
       ctx.translate(Math.round(this.x), Math.round(feet));
       ctx.scale(direction * cfg.scale, cfg.scale);
       ctx.imageSmoothingEnabled = false;
-      if (this.flash > 0) ctx.filter = "brightness(1.55)";
 
       ctx.drawImage(
         spriteSheet,
@@ -312,7 +322,7 @@ class Unit extends Entity {
     // Basic fallback box
     ctx.save();
     ctx.translate(Math.round(this.x), Math.round(feet));
-    ctx.fillStyle = this.side === 1 ? "#4a7568" : "#805842";
+    ctx.fillStyle = this.flash > 0 ? "#fff1d2" : this.poisoned ? "#638c3f" : this.side === 1 ? "#4a7568" : "#805842";
     ctx.fillRect(-6, -20, 12, 20);
     ctx.restore();
   }

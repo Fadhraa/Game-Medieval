@@ -31,6 +31,8 @@ class Battle {
     this.units = [];
     this.kills = {};
     this.boss = null;
+    this.outpost = null;
+    this.mudPits = [];
     this.projectiles = [];
     this.bursts = [];
     this.arrowBursts = [];
@@ -76,6 +78,10 @@ class Battle {
     const chapterIndex = Campaign.findIndex(chapter => chapter.stages.some(item => item.id === stage.id));
     this.chapterIndex = chapterIndex >= 0 ? chapterIndex : 0;
     this.arena = Campaign[this.chapterIndex]?.arena;
+    this.outpost = this.chapterIndex >= Constants.OUTPOST.unlockChapterIndex && typeof Outpost === "function"
+      ? new Outpost()
+      : null;
+    this.mudPits = this.arena === "swamp" ? this.generateSwampMudPits() : [];
     this.baseSkillActiveUntil = 0;
     this.baseSkillCooldownUntil = 0;
     this.projectiles = [];
@@ -158,6 +164,71 @@ class Battle {
       if (unit.kind === "farmer" && unit.hp > 0) farmers[unit.plotIndex] = unit;
     }
     return farmers;
+  }
+
+  generateSwampMudPits() {
+    const cfg = Constants.SWAMP_MUD;
+    const pits = [];
+    const isValidX = (x) => {
+      if (x < cfg.minX || x > cfg.maxX) return false;
+      if (this.outpost && Math.abs(x - this.outpost.x) < cfg.outpostClearance) return false;
+      return pits.every((p) => Math.abs(x - p.x) >= cfg.minSpacing);
+    };
+
+    for (let i = 0; i < cfg.count; i++) {
+      let chosen = null;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const candidate = Math.round(cfg.minX + Math.random() * (cfg.maxX - cfg.minX));
+        if (isValidX(candidate)) {
+          chosen = candidate;
+          break;
+        }
+      }
+      if (chosen === null) {
+        for (let x = cfg.minX; x <= cfg.maxX; x += 20) {
+          if (isValidX(x)) {
+            chosen = x;
+            break;
+          }
+        }
+      }
+      if (chosen !== null) {
+        pits.push({ x: chosen, radius: cfg.radius, phase: Math.random() * 4 });
+      }
+    }
+    return pits;
+  }
+
+  updateSwampMud(delta) {
+    const cfg = Constants.SWAMP_MUD;
+    for (const unit of this.units) {
+      if (!unit || unit.side !== 1 || unit.kind === "farmer" || unit.hp <= 0 || unit.active === false) {
+        if (unit) {
+          unit.inMud = false;
+          unit.poisoned = false;
+          unit.poisonUntil = 0;
+        }
+        continue;
+      }
+      const stepping = this.mudPits.some((pit) => Math.abs(unit.x - pit.x) <= pit.radius);
+      if (stepping) {
+        unit.inMud = true;
+        unit.poisonUntil = this.elapsed + cfg.poisonDuration;
+      } else {
+        unit.inMud = false;
+      }
+
+      unit.poisoned = unit.poisonUntil > this.elapsed;
+      if (unit.poisoned) {
+        unit.mudTickTimer = (unit.mudTickTimer ?? 0) + delta;
+        while (unit.mudTickTimer >= cfg.tickInterval && unit.hp > 0) {
+          unit.mudTickTimer -= cfg.tickInterval;
+          unit.takeDamage(cfg.damage, this, { type: "magic" });
+        }
+      } else {
+        unit.mudTickTimer = 0;
+      }
+    }
   }
 
   get activeWitcher() {
@@ -524,6 +595,9 @@ class Battle {
     for (const unit of this.units) {
       if (unit.hp > 0 && !(unit.stunnedUntil > this.elapsed) && !(unit.frozenUntil > this.elapsed)) unit.update(delta, this);
     }
+    if (this.mudPits.length > 0) {
+      this.updateSwampMud(delta);
+    }
 
     for (const [target, state] of this.knightAttackQueues) {
       for (const knight of state.waiting) {
@@ -535,7 +609,8 @@ class Battle {
       }
     }
 
-    // Update projectiles
+    // Update projectiles & outpost
+    if (this.outpost) this.outpost.update(delta, this);
     for (const projectile of this.projectiles) {
       projectile.update(delta, this);
     }

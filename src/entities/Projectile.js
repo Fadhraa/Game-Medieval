@@ -31,6 +31,7 @@ class Fireball extends Projectile {
         (unit) =>
           unit.side === -1 &&
           unit.hp > 0 &&
+          !unit.isUntargetable &&
           unit.x >= beforeX - 14 &&
           unit.x <= this.x + 7
       )
@@ -62,6 +63,7 @@ class Fireball extends Projectile {
         other.side === -1 &&
         other !== target &&
         other.hp > 0 &&
+        !other.isUntargetable &&
         Math.abs(other.x - x) <= this.splashRadius
       ) {
         other.takeDamage(this.splashDamage, battle, { type: "magic" });

@@ -23,6 +23,7 @@
 <script src="src/entities/CombatNumber.js" defer></script>
 <script src="src/entities/KiraProjectiles.js" defer></script>
 <script src="src/entities/LynceProjectiles.js" defer></script>
+<script src="src/entities/Outpost.js" defer></script>
 <script src="src/entities/Unit.js" defer></script>
 <script src="src/entities/HollowMask.js" defer></script>
 <script src="src/entities/Healer.js" defer></script>
@@ -43,6 +44,13 @@
 <!-- Battle Engine & Renderer -->
 <script src="src/core/Battle.js" defer></script>
 <script src="src/core/Renderer.js" defer></script>
+<script src="src/render/WorldBackdrop.js" defer></script>
+<script src="src/render/BattleEffectsOverlay.js" defer></script>
+<script src="src/render/HudAndPortraits.js" defer></script>
+<script src="src/ui/BarracksUI.js" defer></script>
+<script src="src/ui/CampaignUI.js" defer></script>
+<script src="src/ui/ProgressUI.js" defer></script>
+<script src="src/ui/BattleInput.js" defer></script>
 <script src="src/main.js" defer></script>
 </head>
 <body>
@@ -185,6 +193,7 @@
     </div>
     <div class="field" tabindex="-1" id="field">
       <canvas id="scene" width="576" height="247" role="img" aria-label="Benteng kerajaan di kiri dan markas goblin di kanan. Geser untuk melihat seluruh medan pertempuran"></canvas>
+      <div id="fpsCounter" class="fps-counter" aria-hidden="true">-- FPS</div>
       <div class="overlay" id="overlay">
         <div class="mission">
           <h2 id="missionTitle">Rebut Markas Goblin</h2>

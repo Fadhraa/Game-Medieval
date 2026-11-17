@@ -138,7 +138,6 @@ class Minotaur extends Unit {
     ctx.translate(Math.round(this.x), Math.round(feet));
     ctx.scale(direction * cfg.scale, cfg.scale);
     ctx.imageSmoothingEnabled = false;
-    if (this.flash > 0) ctx.filter = "brightness(1.55)";
     ctx.drawImage(spriteSheet, frame * cfg.frameWidth, row * cfg.frameHeight,
       cfg.frameWidth, cfg.frameHeight, -cfg.originX, -cfg.feetOrigin,
       cfg.frameWidth, cfg.frameHeight);

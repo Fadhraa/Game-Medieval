@@ -14,14 +14,14 @@ const Constants = {
     homeX: 126,
     plots: [
       { x: 193, workX: 155 },
-      { x: 265, workX: 227 }
+      { x: 265, workX: 227 },
     ],
     speed: 35,
     plantSeconds: 1.1,
     growthSeconds: 3.8,
     harvestSeconds: 1.2,
     deliverySeconds: 0.8,
-    breadPerDelivery: 4
+    breadPerDelivery: 4,
   },
   KNIGHT_COST: 2,
   SUMMON_COOLDOWN: 1.5,
@@ -39,7 +39,7 @@ const Constants = {
     duration: 10,
     cooldown: 60,
     moveSpeedMultiplier: 1.4,
-    attackSpeedMultiplier: 1.3
+    attackSpeedMultiplier: 1.3,
   },
 
   DEFEND: {
@@ -51,36 +51,36 @@ const Constants = {
     heroKinds: ["knight", "wizard", "kira", "james", "lynce"],
     roleGroups: {
       melee: ["knight", "james"],
-      ranged: ["wizard", "kira", "lynce"]
+      ranged: ["wizard", "kira", "lynce"],
     },
     formationBackOffsets: {
       knight: 0,
       james: 0,
       lynce: 65,
       wizard: 85,
-      kira: 110
+      kira: 110,
     },
     labels: {
       knight: "Ksatria",
       wizard: "Wizard",
       kira: "Kira",
       james: "James",
-      lynce: "Lynce"
+      lynce: "Lynce",
     },
     shortTags: {
       knight: "K",
       wizard: "W",
       kira: "R",
       james: "J",
-      lynce: "L"
+      lynce: "L",
     },
     colors: {
       knight: "#6bc2a8",
       wizard: "#9e98f5",
       kira: "#7dd4f0",
       james: "#eab864",
-      lynce: "#e88868"
-    }
+      lynce: "#e88868",
+    },
   },
 
   FIREBALL_SPEED: 220,
@@ -92,7 +92,30 @@ const Constants = {
 
   BASES: {
     hero: { x: 109, hp: 360 },
-    enemy: { x: 476 + arenaExtension, spawnX: 501 + arenaExtension, hp: 300 }
+    enemy: { x: 476 + arenaExtension, spawnX: 501 + arenaExtension, hp: 300 },
+  },
+
+  OUTPOST: {
+    unlockChapterIndex: 1, // Chapter 2+ (Level 4-18)
+    x: 520,
+    captureRadius: 55,
+    captureSeconds: 4.5,
+    attackRange: 140,
+    attackInterval: 1.8,
+    damage: 14,
+  },
+
+  SWAMP_MUD: {
+    count: 3,
+    minX: 340,
+    maxX: 840,
+    minSpacing: 115,
+    outpostClearance: 48,
+    radius: 25,
+    damage: 8,
+    tickInterval: 2,
+    poisonDuration: 8,
+    attackSpeedMultiplier: 0.85,
   },
 
   ASSETS: {
@@ -102,6 +125,8 @@ const Constants = {
       groundPath: "assets/sprites/background/ground-path.png",
       swamp: "assets/sprites/background/swamp.png",
       frost: "assets/sprites/background/frost.png",
+      volcano: "assets/sprites/background/volcano.png",
+      volcanoOverlay: "assets/sprites/background/volcano-overlay.png",
       distantPine: "assets/sprites/background/cedar-distant.png",
       woodlandPine: "assets/sprites/background/cedar-woodland.png",
       woodlandOak: "assets/sprites/background/oak-woodland.png",
@@ -146,7 +171,15 @@ const Constants = {
       baseSpeedAura: "assets/sprites/effects/base-speed-aura.png",
       enemyDefeatPoof: "assets/sprites/effects/enemy-defeat-poof.png",
       heroDefeatSoul: "assets/sprites/effects/hero-defeat-soul.png",
-      rootGiantRoots: "assets/sprites/projectiles/root-giant-roots.png"
+      swampMudPit: "assets/sprites/effects/swamp-mud-pit.png",
+      swampMudDebuff: "assets/sprites/effects/swamp-mud-debuff.png",
+      magmaFissure: "assets/sprites/effects/magma-fissure.png",
+      magmaEruption: "assets/sprites/effects/magma-eruption.png",
+      magmaBurnDebuff: "assets/sprites/effects/magma-burn-debuff.png",
+      outpostNeutral: "assets/sprites/background/outpost-neutral.png",
+      outpostHero: "assets/sprites/background/outpost-hero.png",
+      outpostEnemy: "assets/sprites/background/outpost-enemy.png",
+      rootGiantRoots: "assets/sprites/projectiles/root-giant-roots.png",
     },
     sfx: {
       knight: "assets/sfx/knight-slash.wav",
@@ -170,13 +203,13 @@ const Constants = {
       witcherSummonComplete: "assets/sfx/witcher-summon-complete.wav",
       rootGiantAttack1: "assets/sfx/root-giant-attack1.wav",
       rootGiantAttack2: "assets/sfx/root-giant-attack2.wav",
-      rootGiantSkill: "assets/sfx/root-giant-skill.wav"
+      rootGiantSkill: "assets/sfx/root-giant-skill.wav",
     },
     bgm: {
       main: "assets/Back_sound/1.mp3",
-      lobby: "assets/Back_sound/lobby.wav"
-    }
-  }
+      lobby: "assets/Back_sound/lobby.wav",
+    },
+  },
 };
 
 window.Constants = Constants;

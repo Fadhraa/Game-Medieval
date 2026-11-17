@@ -17,6 +17,7 @@ class LightningBolt extends Projectile {
         (unit) =>
           unit.side === -1 &&
           unit.hp > 0 &&
+          !unit.isUntargetable &&
           unit.x >= beforeX - 14 &&
           unit.x <= this.x + 7
       )

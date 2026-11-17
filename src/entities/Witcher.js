@@ -91,6 +91,11 @@ class Witcher extends Healer {
       return;
     }
 
+    if (battle.outpost?.shouldHoldToCapture(this)) {
+      this.moving = false;
+      return;
+    }
+
     // Stay behind nearby allies while advancing. Heroes can still hit her normally.
     let frontX = Infinity;
     for (const unit of battle.units) {
